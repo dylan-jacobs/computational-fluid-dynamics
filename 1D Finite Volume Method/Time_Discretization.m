@@ -28,7 +28,7 @@ function [u] = Time_Discretization(type, u0, tvals, xvals, alpha, f)
                 leftlim = WENO(u1, 1); % left limit, right boundary (1 = left limit at right boundary, 0 = right limit at left boundary)
                 rightlim = WENO(u1, 0);
                 rightlim = [rightlim(2:end); rightlim(1)]; % right limit, right boundary
-                [flux_pos, flux_neg] = LF_Flux(@(u) f(xvals(2:end), t1, u), rightlim, leftlim, alpha);
+                [flux_pos, flux_neg] = LF_Flux(@(v) f(xvals(2:end), t1, v), rightlim, leftlim, alpha);
                 F1 = -(flux_pos - flux_neg);
                 u = u + (dt/(2*dx))*(F0 + F1); 
             otherwise
@@ -40,9 +40,18 @@ function [u] = Time_Discretization(type, u0, tvals, xvals, alpha, f)
                 leftlim = WENO(u1, 1); % left limit, right boundary (1 = left limit at right boundary, 0 = right limit at left boundary)
                 rightlim = WENO(u1, 0);
                 rightlim = [rightlim(2:end); rightlim(1)]; % right limit, right boundary
-                [flux_pos, flux_neg] = LF_Flux(@(u) f(xvals(2:end), t1, u), rightlim, leftlim, alpha);
+                [flux_pos, flux_neg] = LF_Flux(@(v) f(xvals(2:end), t1, v), rightlim, leftlim, alpha);
                 F1 = -(flux_pos - flux_neg);
-                u = u + (dt/(2*dx))*(F0 + F1); 
+                u2 = u + (dt/(4*dx))*(F0 + F1); 
+
+                % Stage 3
+                t2 = t0 + dt/2;
+                leftlim = WENO(u2, 1); % left limit, right boundary (1 = left limit at right boundary, 0 = right limit at left boundary)
+                rightlim = WENO(u2, 0);
+                rightlim = [rightlim(2:end); rightlim(1)]; % right limit, right boundary
+                [flux_pos, flux_neg] = LF_Flux(@(v) f(xvals(2:end), t2, v), rightlim, leftlim, alpha);
+                F2 = -(flux_pos - flux_neg);
+                u = u + (dt/(dx))*((F0/6) + (F1/6) + (F2*2/3)); 
 
         end
         % figure(2); clf;

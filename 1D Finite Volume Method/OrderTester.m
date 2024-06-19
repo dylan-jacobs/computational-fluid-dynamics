@@ -1,7 +1,7 @@
 % Compute order for 1D Finite Volume Problems for Conservation Laws
 
 function [output_table] = OrderTester(discretizationType, lambda, tf, u0, f, u_exact_eqn)
-    Nxvals = [20, 40, 80, 160, 320, 640]';
+    Nxvals = [40, 80, 160, 320, 640]';
     interval = [0, 2*pi];    
     alpha = 1;
     
@@ -25,9 +25,9 @@ function [output_table] = OrderTester(discretizationType, lambda, tf, u0, f, u_e
     end
     
     figure; clf;
-    plot(xmid, u_exact , 'black--'); hold on;
+    plot(xmid, u_exact, 'black--'); hold on;
     plot(xmid, u, 'b-', 'LineWidth', 1.5);
-    title(sprintf('WENO5 + RK1 at t=%s', num2str(tf, 2)));
+    title(sprintf('WENO5 + %s at t=%s', discretizationType, num2str(tf, 2)));
     xlabel('x'); ylabel('u'); legend('Exact', sprintf('Nx=%d', numel(xvals)-1));
 
     L1_error = errors(:, 1);
