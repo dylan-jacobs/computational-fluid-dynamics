@@ -1,0 +1,32 @@
+clear variables; close all; clc;
+% ---- MUSCL Problems --------
+Nx = 100; % N+1 points, N intervals
+I = [-pi, pi]; % x interval
+tf = 1; % final time
+alpha = 1; % alpha = max_u(|f'(u)|) --> f'(u) = u0(x), which has a max val of 1
+xvals = linspace(I(1), I(2), Nx + 1)';
+f = @(u) 0.5*u.^2;
+
+% 1
+u0 = @(x) sin(x-pi) + 1; % initial condition
+u_exact_eqn = @(y) y-(sin(xvals-(tf*y)-pi)+1);
+u_exact = fsolve(u_exact_eqn, xvals, optimset('Display', 'off'));
+% MUSCL(xvals, u0, tf, u_exact, f);
+
+% 2 - Riemann Problem
+u0 = @(x) (x <= 0)*(2); % initial condition
+u_exact = (xvals<=(tf))*(2);
+MUSCL(xvals, u0, tf, u_exact, f);
+
+% 3 - Riemann Problem
+u0 = @(x) (x > 0)*(2); % initial condition
+u_exact = (xvals>0 & xvals <= tf).*(xvals/tf) + (xvals>tf)*(2);
+MUSCL(xvals, u0, tf, u_exact, f);
+
+
+
+
+
+
+
+

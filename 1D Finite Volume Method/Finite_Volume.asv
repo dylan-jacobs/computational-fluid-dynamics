@@ -1,0 +1,32 @@
+% Use WENO-5, Lax-Friedrichs Flux and various temporal discretizations (SSP
+% RK1/RK2/RK3) to solve conservation law equations
+% Spatial mesh size = NX+1, Nx cells
+% tf = final time
+% Flux function f
+% u_t + (f(u))_x = 0
+
+
+function [u, errors] = Finite_Volume(Nx, interval, tf, f, u0, alpha, u_exact)
+    xvals = linspace(interval(1), interval(2), Nx + 1)';
+    dx = xvals(2) - xvals(1);
+    dt = dx;
+    tvals = (0:dt:tf)'; 
+    if tvals(end) ~= tf
+        tvals = [tvals; tf];
+    end
+
+    % initialize u to cell averages
+    u = zeros(numel(Nx), 1);
+    for i = 1:Nx
+        u(i, 1) = (1/dx)*GLQuad(u0, xvals(i), xvals(i+1), 7);
+    end
+
+    u = Time_Discretization('RK1', u, tvals, dx, alpha, f);
+    errors(1) = dx*(sum(abs(u - u_exact))); % L1 error
+    errors(2) = sqrt(dx*sum((u - u_exact).^2)); % L2 error
+end
+
+
+
+
+
