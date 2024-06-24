@@ -1,0 +1,51 @@
+% Compute 2D Finite Differences Problems for Conservation Laws
+clear variables; close all; clc;
+
+tf = 0.5; % final time
+a = 1;
+b = 2;
+lambda = 0.3; % dt = lambda*dx
+interval = [0, 2*pi, 0, 2*pi]; % xmin, xmax, ymin, ymax
+discretizationType = 'RK1'; % time discretization type (RK1, RK2, RK3)
+
+alpha = 1;
+beta = 2;
+
+% %% Test 1 - Linear Advection
+% f = @(u, x, y, t) (a*u); 
+% g = @(u, x, y, t) (b*u);
+% u0 = @(x, y) sin(x + y);
+% u_exact = @(x, y) sin(x + y - (tf*(a + b)));
+% 
+% OrderTester(discretizationType, lambda, tf, u0, interval, f, g, u_exact, alpha, beta)
+% 
+% 
+% 
+% %% Test 2 - Variable Coefficient 1
+% interval = [-pi, pi, -pi, pi];
+% f = @(u, x, y, t) (-y.*u); 
+% g = @(u, x, y, t) (x.*u);
+% u0 = @(x, y) exp(-3*(x.^2 + y.^2));
+% u_exact = @(x, y) u0(x, y);
+% 
+% OrderTester(discretizationType, lambda, tf, u0, interval, f, g, u_exact, alpha, beta)
+
+%% Test 3 - Variable Coefficient 2 (Testing WENO on Discontinuities)
+interval = [-pi, pi, -pi, pi];
+tf = 2*pi;
+f = @(u, x, y, t) (-y.*u); 
+g = @(u, x, y, t) (x.*u);
+u0 = @(x, y) ((x>=-1) - (x>=1)).*((y>=-1) - (y>=1)); %
+
+xvals = linspace(interval(1), interval(2), 101)';
+yvals = linspace(interval(3), interval(4), 101)';
+dx = xvals(2) - xvals(1);
+dy = yvals(2) - yvals(1);
+xmid = xvals(1:end-1) + dx/2;
+ymid = yvals(1:end-1) + dy/2;
+
+u = Finite_Differences_2D(discretizationType, 100, 100, lambda, interval, tf, f, g, u0, alpha, alpha);
+[X, Y] = meshgrid(xmid, ymid); X = X'; Y = Y';
+figure; clf; surf(X, Y, u);
+colorbar;
+shading interp; % removes gridlines
