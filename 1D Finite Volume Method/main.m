@@ -4,7 +4,7 @@ clear variables; close all; clc;
 tf = 2;
 a = 1;
 lambda = 0.5; % dt = lambda*dx
-discretizationType = 'RK2';
+discretizationType = 'RK3';
 
 %% Test 1 - Burgers' Equation
 f = @(x, t, u) (a*(u.^2)/2);

@@ -65,7 +65,7 @@ function [u] = Time_Discretization(type, u0, tvals, xvals, alpha, f)
 
                 f_pos = (f(xmid, t2, u2) + (alpha*u2))/2;
                 f_neg = (f(xmid, t2, u2) - (alpha*u2))/2;
-                
+
                 flux_left_lim = WENO(f_pos, 1); % left limit, right boundary
                 flux_right_lim = WENO(f_neg, 0); % right limit, left boundary
                 flux_right_lim = [flux_right_lim(2:end); flux_right_lim(1)];

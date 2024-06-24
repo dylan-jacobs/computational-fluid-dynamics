@@ -26,6 +26,7 @@ function [output_table] = OrderTester(discretizationType, lambda, tf, u0, f, u_e
     
     figure; clf;
     plot(xmid, u_exact, 'black--'); hold on;
+    % plot(xmid+(tf*sin(xmid)), sin(xmid) , 'black--'); hold on; % burgers equation
     plot(xmid, u, 'b-', 'LineWidth', 1.5);
     title(sprintf('WENO5 + %s at t=%s', discretizationType, num2str(tf, 2)));
     xlabel('x'); ylabel('u'); legend('Exact', sprintf('Nx=%d', numel(xvals)-1));
