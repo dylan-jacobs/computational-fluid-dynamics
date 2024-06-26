@@ -2,14 +2,14 @@
 clear variables; close all; clc;
 
 tf = 0.5; % final time
-a = 1;
-b = 2;
 lambda = 0.95; % dt = lambda*CFL condition
 interval = [0, 2*pi, 0, 2*pi]; % xmin, xmax, ymin, ymax
 discretizationType = 'RK4'; % time discretization type (RK1, RK2, RK3)
 
 
 %% Test 1 - Linear Advection
+a = 1;
+b = 2;
 f = @(u, x, y, t) (a*u); 
 g = @(u, x, y, t) (b*u);
 u0 = @(x, y) sin(x + y);
