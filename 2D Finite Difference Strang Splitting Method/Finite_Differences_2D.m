@@ -8,15 +8,8 @@
 
 
 function [u] = Finite_Differences_2D(discretizationType, Nx, Ny, lambda, interval, tf, f, g, u0, alpha, beta)
-    xvals = linspace(interval(1), interval(2), Nx+1)';
-    yvals = linspace(interval(3), interval(4), Ny+1)';
-    dx = xvals(2) - xvals(1);
-    dy = yvals(2) - yvals(1);
-    xmid = xvals(1:end-1) + dx/2;
-    ymid = yvals(1:end-1) + dy/2;
-    dt = lambda/((alpha/dx) + (beta/dy));
-
-    [X, Y] = meshgrid(xmid, ymid); X = X'; Y = Y';
+    [X, Y, dx, dy] = GetXY(Nx, Ny, interval);
+    dt = lambda/((alpha/dx) + (beta/dy)); % CFL condition
 
     tvals = (0:dt:tf)'; 
     if tvals(end) ~= tf
@@ -26,6 +19,7 @@ function [u] = Finite_Differences_2D(discretizationType, Nx, Ny, lambda, interva
     u = u0(X, Y);
     for n = 2:numel(tvals)
         t0 = tvals(n-1);
+        dt = tvals(n) - tvals(n-1);
         for i = 1:Ny
             % update x
             u(:, i) = Time_Discretization(discretizationType, u(:, i), t0, dt/2, X(:, i), Y(:, i), alpha, f);
@@ -42,9 +36,9 @@ function [u] = Finite_Differences_2D(discretizationType, Nx, Ny, lambda, interva
 
     % figure; clf; surf(X, Y, u);
     % colorbar;
-    % shading interp; % removes gridlines
-    % legend(sprintf('Nx = Ny = %s', num2str(Nx, 3)));
-    % xlabel('X'); ylabel('Y'); zlabel('U(X, Y)'); title([sprintf('2D WENO+%s', discretizationType), sprintf(' approximation at time %s', num2str(tf, 2))]);
+    % shading flat; % removes gridlines
+    % legend(sprintf('Nx = Ny = %s', num2str(Nx, 3)), 'Location','northwest');
+    % xlabel('X'); ylabel('Y'); zlabel('U(X, Y)'); title([sprintf('2D WENO+%s', discretizationType), sprintf(' approximation at time %s', num2str(tf, 4))]);
 
 end
 
