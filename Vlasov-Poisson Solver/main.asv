@@ -1,0 +1,74 @@
+% Compute 2D Finite Differences Problems for Conservation Laws
+clear variables; close all; clc;
+
+tf = 60; % final time
+lambda = 0.3; % dt = lambda*dx
+vmax = 5; % max velocity
+interval = [0, 4*pi, -vmax, vmax]; % xmin, xmax, ymin, ymax
+Nx = 64; Nv = 128;
+discretizationType = 'RK3'; % time discretization type (RK1, RK2, RK3)
+
+
+%% Weak Landau Damping Test
+alpha = 0.01;
+k = 0.5;
+f0 = @(x, v) (1/sqrt(2*pi)).*(1+(alpha.*cos(k.*x))).*exp(-0.5*v.^2);
+[X, V, ~, ~] = GetXY(Nx, Nv, interval);
+
+figure(1); 
+plot()
+
+[f_matrix, EF, mass, L1, L2, energy, entropy, tvals] = Finite_Differences_2D_Nonsplitting(discretizationType, Nx, Nv, lambda, interval, tf, f0);
+
+% figure(1);
+% plot(EF);
+% 
+% figure(2);
+% plot(mass);
+% 
+% figure(3);
+% plot(L1);
+
+figure(4);
+plot(tvals, L2);
+
+% figure(5);
+% plot(energy);
+% 
+% figure(6);
+% plot(entropy);
+
+figure; clf; surf(X, V, f_matrix(:, :, tf));
+colorbar;
+shading flat; % removes gridlines
+legend(sprintf('Nx = Ny = %s', num2str(Nx, 3)), 'Location','northwest');
+xlabel('X'); ylabel('Y'); zlabel('U(X, Y)'); title([sprintf('2D WENO+%s', discretizationType), sprintf(' approximation at time %s', num2str(tf, 4))]);
+view(2); % bird's eye view
+
+%% Strong Landau Damping Test
+
+
+
+
+
+
+%% 2-Stream Instability Test
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

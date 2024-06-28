@@ -12,7 +12,7 @@ function [output_table] = OrderTester(discretizationType, lambda, tf, u0, interv
         [X, Y, dx, dy] = GetXY(Nx, Ny, interval);
         u_exact = u_exact_eqn(X, Y);
         
-        u = Finite_Differences_2D_Nonsplitting(discretizationType, Nx, Ny, lambda, interval, tf, f, g, u0, alpha, beta);
+        u = Finite_Differences_2D_Nonsplitting(discretizationType, Nx, Ny, lambda, interval, tf, f, g, u0, alpha, beta, 0);
         errors(i, 1) = dx*dy*(sum(sum(abs(u - u_exact)))); % L1 error
         errors(i, 2) = sqrt(dx*dy*sum(sum((u - u_exact).^2))); % L2 error
     end
