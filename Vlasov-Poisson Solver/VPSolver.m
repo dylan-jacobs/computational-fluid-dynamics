@@ -1,14 +1,24 @@
 % Use WENO-5, Lax-Friedrichs Flux and various temporal discretizations (SSP
-% RK1/RK2/RK3) to solve 2D conservation law equations
+% RK1/RK2/RK3) to solve Vlasov-Poisson Equation
 % Spatial mesh size = N+1, N cells in both X and Y directions
-% tf = final time
-% Flux function f in X
-% Flux function g in Y
-% u_t + f(u)_x + g(u)_y = 0
+% Inputs:
+%   discretizationType - temporal discretization method (RK1, RK2 ... RK4)
+%   Nx, Nv - x, v mesh-size, respectively
+%   lambda - dt = lambda*dx
+%   interval - [xmin, xmax, vmin, vmax]
+%   tf - final time
+%   f0 - initial condition
+% Outputs:
+%   f_matrix - solution f at all times
+%   EF - electric field at all times
+%   mass
+%   L1, L2 - norms of numerical solution f at all times
+%   energy, entropy
+%   tvals
 
 
 function [f_matrix, EF, mass, L1, L2, energy, entropy, tvals] = VPSolver(discretizationType, Nx, Nv, lambda, interval, tf, f0)
-    
+
     [X, V, dx, dv] = GetXY(Nx, Nv, interval);
     dt = lambda.*dx; % CFL condition
 
@@ -17,6 +27,7 @@ function [f_matrix, EF, mass, L1, L2, energy, entropy, tvals] = VPSolver(discret
         tvals = [tvals; tf];
     end
 
+    % initialize vectors
     Nt = numel(tvals);
     f_matrix = zeros(Nx, Nv, Nt);
     EF = zeros(Nt, 1);
@@ -37,7 +48,7 @@ function [f_matrix, EF, mass, L1, L2, energy, entropy, tvals] = VPSolver(discret
 
         [EF(n), mass(n), L1(n), L2(n), energy(n), entropy(n)] = quantities(f, V, interval(2) - interval(1), Nx, dx, dv);
         if mod(n, 10) == 0
-            figure(1); clf; surf(X, V, f_matrix(:, :, n));
+            figure(8); clf; surf(X, V, f_matrix(:, :, n));
             colorbar;
             shading flat; % removes gridlines
             legend(sprintf('Nx = Ny = %s', num2str(Nx, 3)), 'Location','northwest');
