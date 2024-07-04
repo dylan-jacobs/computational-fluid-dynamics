@@ -31,7 +31,7 @@ end
 [f_matrix, EF, mass, L1, L2, energy, entropy, tvals] = VPSolver(discretizationType, Nx, Nv, lambda, interval, tf, f0);
 
 figure(1);
-plot(tvals, EF, 'LineWidth', 1.5);
+semilogy(tvals, EF, 'LineWidth', 1.5);
 xlabel('time'); ylabel('E_2'); title('L_2 norm of Electric Field over Time');
 
 figure(2);
@@ -57,7 +57,7 @@ xlabel('time'); ylabel('Entropy'); title('Entropy over Time');
 figure(7); clf; surf(X, V, f_matrix(:, :, end));
 colorbar;
 shading flat; % removes gridlines
-legend(sprintf('Nx = Ny = %s', num2str(Nx, 3)), 'Location','northwest');
+legend(sprintf('N_x = %s, N_v = %s', num2str(Nx, 3), num2str(Nv, 3)), 'Location','northwest');
 xlabel('X'); ylabel('Y'); zlabel('U(X, Y)'); title([sprintf('2D WENO+%s', discretizationType), sprintf(' approximation at time %s', num2str(tf, 4))]);
 view(2); % bird's eye view
 xlim([interval(1), interval(2)]);
