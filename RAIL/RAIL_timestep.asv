@@ -1,0 +1,37 @@
+% Completes one timestep using 2D RAIL algorithm
+
+function [Vx, S, Vy] = RAIL_timestep(Vx0, S0, Vy0, dt, Dxx, Dyy)
+    N = size(Dxx);
+
+    Vx_star = Vx0; Vy_star = Vy0;
+    K = Vx0*S0;
+    L = Vy0*(S0');
+
+    % (I - dtDxx)Kn+1 + Kn+1(-dt(DyyVy_star)'Vy_star = Kn
+    K1 = sylvester(eye(N) - (dt*Dxx), -dt*(Dyy*Vy_star)'*Vy_star, K);
+    L1 = sylvester(eye(N) - (dt*Dyy), -dt*(Dxx*Vx_star)'*Vx_star, L);
+
+    [Vx_ddagger, ~] = qr(K1); [Vy_ddagger, ~] = qr(L1);
+
+    [Vx, Vy] = reduced_augmentation([Vx_ddagger, Vx0], [Vy_ddagger, Vy0]);
+    N = [size(Vx', 1), size(Vx, 2)];
+    S = sylvester(eye(N) - (dt*(Vx')*Dxx*Vx), -dt*(Dyy*Vy)'*Vy, (Vx')*Vx0*S0*(Vy0')*Vy);
+    [Vx, S, Vy] = truncate_svd(Vx, S, Vy, 1e-6);
+end
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
