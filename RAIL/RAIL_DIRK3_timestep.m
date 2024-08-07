@@ -41,7 +41,7 @@ function [Vx3, S3, Vy3, r3] = RAIL_DIRK3_timestep(Vx0, S0, Vy0, dt, Dxx, Dyy, to
 
     % Stage 3:
     % Predict V_dagger using B. Euler
-    [Vx_dagger3, ~, Vy_dagger3, ~] = RAIL_B_Euler_timestep(Vx2, S2, Vy2, dt, Dxx, Dyy, tolerance);
+    [Vx_dagger3, ~, Vy_dagger3, ~] = RAIL_B_Euler_timestep(Vx0, S0, Vy0, dt, Dxx, Dyy, tolerance);
     Y2 = (((Dxx*Vx2*S2*(Vy2')) + (Vx2*S2*((Dyy*Vy2)'))));
     W2 = (Vx0*S0*(Vy0')) + (beta1*dt*Y1) + (beta2*dt*Y2);
       

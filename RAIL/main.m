@@ -41,16 +41,16 @@ end
 % colorbar;
 % shading flat; % removes gridlines
 % xlabel('X'); ylabel('Y'); zlabel('U(X, Y)'); title([sprintf('U_{Exact} at time %s', num2str(tf, 4))]);
-%%
+
 figure(3); clf;
 loglog(lambdavals, errors(:, 1), 'black-', 'LineWidth', 1.5); hold on; % B. Euler
 loglog(lambdavals, errors(:, 2), 'blue-', 'LineWidth', 1.5); % DIRK2
-loglog(lambdavals, errors(:, 3), 'green-', 'LineWidth', 1.5); % DIRK2
+loglog(lambdavals, errors(:, 3), 'green-', 'LineWidth', 1.5); % DIRK3
 loglog(lambdavals, 0.08*lambdavals, 'black--', 'LineWidth', 1); % Order 1
 loglog(lambdavals, 0.0003*lambdavals.^2, 'blue--', 'LineWidth', 1); % Order 2
 loglog(lambdavals, 0.000008*lambdavals.^3, 'green--', 'LineWidth', 1); % Order 3
 title('RAIL Temporal Convergence at tf=0.5, Nx = Ny = 200'); xlabel('\lambda'); ylabel('L1 Error');
-legend('Backward Euler', 'DIRK2', 'Order 1', 'Order 2', 'Order 3');
+legend('Backward Euler', 'DIRK2', 'DIRK3', 'Order 1', 'Order 2', 'Order 3');
 
 %% TEST 2 -- Rank Test
 clc; clear variables; close all;
