@@ -1,10 +1,10 @@
 % Spectrally accurate differentiation matrix [Trefethen, 2000]
-function [Dxx, Dyy] = spectral_matrix(L, Nx, Ny, dx, dy, d1, d2)
+function [Dx, Dy, Dxx, Dyy] = spectral_matrix(L, Nx, Ny, dx, dy, d1, d2)
     % First derivative matricies Dx, Dy if we ever need them
-    % columnx = [0 0.5*(-1).^(1:Nx-1).*cot((1:Nx-1)*(2*pi*dx/(2*L)))];
-    % Dx = (2*pi/L)*toeplitz(columnx,columnx([1 Nx:-1:2]));
-    % columny = [0 0.5*(-1).^(1:Ny-1).*cot((1:Ny-1)*(2*pi*dy/(2*L)))];
-    % Dy = (2*pi/L)*toeplitz(columny,columny([1 Ny:-1:2]));
+    columnx = [0 0.5*(-1).^(1:Nx-1).*cot((1:Nx-1)*(2*pi*dx/(2*L)))];
+    Dx = (2*pi/L)*toeplitz(columnx,columnx([1 Nx:-1:2]));
+    columny = [0 0.5*(-1).^(1:Ny-1).*cot((1:Ny-1)*(2*pi*dy/(2*L)))];
+    Dy = (2*pi/L)*toeplitz(columny,columny([1 Ny:-1:2]));
 
     % Second derivative matrices Dxx, Dyy
     Dxx = (2*pi/L)^2*toeplitz([-1/(3*(2*dx/L)^2)-1/6 ...
