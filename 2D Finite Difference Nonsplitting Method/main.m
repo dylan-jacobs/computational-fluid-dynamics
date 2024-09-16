@@ -4,7 +4,7 @@ clear variables; close all; clc;
 tf = 0.5; % final time
 lambda = 0.5; % dt = lambda*CFL condition
 interval = [0, 2*pi, 0, 2*pi]; % xmin, xmax, ymin, ymax
-discretizationType = 'RK4'; % time discretization type (RK1, RK2, RK3)
+discretizationType = 'RK3'; % time discretization type (RK1, RK2, RK3)
 
 
 %% Test 1 - Linear Advection

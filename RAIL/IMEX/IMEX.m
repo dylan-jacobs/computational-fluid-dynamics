@@ -17,6 +17,7 @@ function [U, ranks] = IMEX(type, U, dt, Nx, Ny, tf, interval, A, d1, d2, phi, to
     if tvals(end) ~= tf
         tvals = [tvals; tf];
     end
+
     [Vx, S, Vy] = svd(U);
     ranks = zeros(numel(tvals), 2);
     
@@ -27,11 +28,11 @@ function [U, ranks] = IMEX(type, U, dt, Nx, Ny, tf, interval, A, d1, d2, phi, to
 
         switch type
             case '111'
-                [Vx, S, Vy, ranks(n, 2)] = IMEX111_timestep(Vx, S, Vy, tvals(n), dt, A, Dx, Dy, Dxx, Dyy, phi, tolerance);
+                [Vx, S, Vy, ranks(n, 2)] = IMEX111_timestep(Vx, S, Vy, tvals(n-1), dt, A, Dx, Dy, Dxx, Dyy, phi, tolerance);
             case '222'
-                [Vx, S, Vy, ranks(n, 2)] = IMEX222_timestep(Vx, S, Vy, tvals(n), dt, A, Dx, Dy, Dxx, Dyy, phi, tolerance);
+                [Vx, S, Vy, ranks(n, 2)] = IMEX222_timestep(Vx, S, Vy, tvals(n-1), dt, A, Dx, Dy, Dxx, Dyy, phi, tolerance);
             case '443'
-                [Vx, S, Vy, ranks(n, 2)] = IMEX111_timestep(Vx, S, Vy, tvals(n), dt, A, Dx, Dy, Dxx, Dyy, phi, tolerance);
+                [Vx, S, Vy, ranks(n, 2)] = IMEX443_timestep(Vx, S, Vy, tvals(n-1), dt, A, Dx, Dy, Dxx, Dyy, phi, tolerance);
   
         end
 

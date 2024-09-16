@@ -13,7 +13,7 @@ A = cell(2, 3);
     A{2, 3} = @(y) y.^0;
 tf = 0.5;
 interval = [-2*pi, 2*pi, -2*pi, 2*pi];
-Nx = 200; Ny = 200;
+Nx = 100; Ny = 100;
 tolerance = 1e-8;
 phi = cell(1, 3);
     phi{1, 1} = @(x, t) [exp(-(x.^2)), x.*exp(-(x.^2)), (x.^2).*exp(-(x.^2)), exp(-(x.^2))];
@@ -30,20 +30,20 @@ for k = 1:numel(lambdavals)
     dt = lambdavals(k)*dx;
     disp([num2str(k), '/', num2str(numel(lambdavals))]);
 
-    % [U1, ~] = IMEX('111', u0(X, Y), dt, Nx, Ny, tf, interval, A, d, d, phi, tolerance);
-    % U_exact = u_exact(X, Y, tf);
-    % errors(k, 1) = dx*dy*(sum(sum(abs(U1 - U_exact))));
-    % 
-    [U2, ~] = IMEX('222', u0(X, Y), dt, Nx, Ny, tf, interval, A, d, d, phi, tolerance);
+    [U1, ranks1] = IMEX('111', u0(X, Y), dt, Nx, Ny, tf, interval, A, d, d, phi, tolerance);
+    U_exact = u_exact(X, Y, tf);
+    errors(k, 1) = dx*dy*(sum(sum(abs(U1 - U_exact))));
+
+    [U2, ranks2] = IMEX('222', u0(X, Y), dt, Nx, Ny, tf, interval, A, d, d, phi, tolerance);
     U_exact = u_exact(X, Y, tf);
     errors(k, 2) = dx*dy*(sum(sum(abs(U2 - U_exact))));
 
-    % [U3, ~] = DIRK3(u0(X, Y), dt, Nx, Ny, tf, interval, d1, d2, tolerance);
-    % U_exact = u_exact(X, Y, tf);
-    % errors(k, 3) = dx*dy*(sum(sum(abs(U3 - U_exact))));
+    [U3, ranks3] = IMEX('443', u0(X, Y), dt, Nx, Ny, tf, interval, A, d, d, phi, tolerance);
+    U_exact = u_exact(X, Y, tf);
+    errors(k, 3) = dx*dy*(sum(sum(abs(U3 - U_exact))));
 end
 
-figure(1); clf; surf(X, Y, U2);
+figure(1); clf; surf(X, Y, U3);
 colorbar;
 shading flat; % removes gridlines
 legend(sprintf('N_x = %s, N_y = %s', num2str(Nx, 3), num2str(Ny, 3)), 'Location','northwest');
@@ -59,11 +59,24 @@ loglog(lambdavals, errors(:, 1), 'black-', 'LineWidth', 1.5); hold on; % IMEX111
 loglog(lambdavals, errors(:, 2), 'blue-', 'LineWidth', 1.5); % IMEX222
 loglog(lambdavals, errors(:, 3), 'green-', 'LineWidth', 1.5); % DIRK3
 loglog(lambdavals, 0.08*lambdavals, 'black--', 'LineWidth', 1); % Order 1
-loglog(lambdavals, 0.0003*lambdavals.^2, 'blue--', 'LineWidth', 1); % Order 2
-loglog(lambdavals, 0.000008*lambdavals.^3, 'green--', 'LineWidth', 1); % Order 3
-title('RAIL Temporal Convergence at tf=0.5, Nx = Ny = 200'); xlabel('\lambda'); ylabel('L1 Error');
+loglog(lambdavals, 0.003*(lambdavals.^2), 'blue--', 'LineWidth', 1); % Order 2
+loglog(lambdavals, 0.00008*(lambdavals.^3), 'green--', 'LineWidth', 1); % Order 3
+title('RAIL Temporal Convergence at tf=0.5, Nx = Ny = 100'); xlabel('\lambda'); ylabel('L1 Error');
 legend('IMEX111', 'IMEX222', 'IMEX443', 'Order 1', 'Order 2', 'Order 3');
 
+figure(4); clf;
+plot(ranks1(:, 1), ranks1(:, 2), 'black-', 'LineWidth', 1.5); hold on;
+plot(ranks2(:, 1), ranks2(:, 2), 'blue-', 'LineWidth', 1.5);
+plot(ranks3(:, 1), ranks3(:, 2), 'green-', 'LineWidth', 1.5);
+xlabel('time'); ylabel('rank'); title('Rank plot over time');
+legend('IMEX111', 'IMEX222', 'IMEX443');
+
+
+
+
+
+
+return
 %% TEST 2 -- Rank Test
 clc; clear variables; close all;
 
@@ -87,11 +100,11 @@ for k = 1:1%numel(lambdavals)
     dt = lambdavals(k)*dx;
     disp([num2str(k), '/', num2str(numel(lambdavals))]);
 
-    [U1, ranks1] = Backward_Euler(u0(X, Y), dt, Nx, Ny, tf, interval, d1, d2, tolerance);
-
-    [U2, ranks2] = DIRK2(u0(X, Y), dt, Nx, Ny, tf, interval, d1, d2, tolerance);
-
-    [U3, ranks3] = DIRK3(u0(X, Y), dt, Nx, Ny, tf, interval, d1, d2, tolerance);
+    % [U1, ranks1] = Backward_Euler(u0(X, Y), dt, Nx, Ny, tf, interval, d1, d2, tolerance);
+    % 
+    % [U2, ranks2] = DIRK2(u0(X, Y), dt, Nx, Ny, tf, interval, d1, d2, tolerance);
+    % 
+    % [U3, ranks3] = DIRK3(u0(X, Y), dt, Nx, Ny, tf, interval, d1, d2, tolerance);
 end
 
 figure(1); clf; surf(X, Y, U3);

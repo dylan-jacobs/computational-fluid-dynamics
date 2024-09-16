@@ -47,15 +47,15 @@ function [f_matrix, EF, mass, L1, L2, energy, entropy, tvals] = VPSolver(discret
         f_matrix(:, :, n) = f;
 
         [EF(n), mass(n), L1(n), L2(n), energy(n), entropy(n)] = quantities(f, V, interval(2) - interval(1), Nx, dx, dv);
-        if mod(n, 10) == 0
-            figure(8); clf; surf(X, V, f_matrix(:, :, n));
-            colorbar;
-            shading flat; % removes gridlines
-            legend(sprintf('N_x = %s, N_v = %s', num2str(Nx, 3), num2str(Nv, 3)), 'Location','northwest');
-            xlabel('X'); ylabel('Y'); zlabel('U(X, Y)'); title([sprintf('2D WENO+%s', discretizationType), sprintf(' approximation at time %s', num2str(tvals(n), 4))]);
-            view(2); % bird's eye view
-            xlim([interval(1), interval(2)]);
-        end
+        % if mod(n, 10) == 0
+        %     figure(8); clf; surf(X, V, f_matrix(:, :, n));
+        %     colorbar;
+        %     shading flat; % removes gridlines
+        %     legend(sprintf('N_x = %s, N_v = %s', num2str(Nx, 3), num2str(Nv, 3)), 'Location','northwest');
+        %     xlabel('X'); ylabel('Y'); zlabel('U(X, Y)'); title([sprintf('2D WENO+%s', discretizationType), sprintf(' approximation at time %s', num2str(tvals(n), 4))]);
+        %     view(2); % bird's eye view
+        %     xlim([interval(1), interval(2)]);
+        % end
     end
 end
 
