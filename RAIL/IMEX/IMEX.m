@@ -42,7 +42,7 @@ function [U, ranks] = IMEX(type, U, dt, Nx, Ny, tf, interval, A, d1, d2, phi, to
         %     shading flat; % removes gridlines
         %     legend(sprintf('N_x = %s, N_y = %s', num2str(Nx, 3), num2str(Ny, 3)), 'Location','northwest');
         %     xlabel('X'); ylabel('Y'); zlabel('U(X, Y)'); title([sprintf('RAIL approximation at time %s', num2str(tf, 4))]);
-        %     view(2);
+        %     view(3);
         % end
     end
     U = Vx*S*(Vy');
