@@ -15,6 +15,7 @@ tf = 0.5;
 interval = [-2*pi, 2*pi, -2*pi, 2*pi];
 Nx = 100; Ny = 100;
 tolerance = 1e-8;
+r0 = 15;
 phi = cell(1, 3);
     phi{1, 1} = @(x, t) [exp(-(x.^2)), x.*exp(-(x.^2)), (x.^2).*exp(-(x.^2)), exp(-(x.^2))];
     phi{1, 2} = @(t) diag([6*d*exp(-2*d*t), -4*exp(-2*d*t), -4*d*exp(-2*d*t), -36*d*exp(-2*d*t)]);
@@ -30,15 +31,15 @@ for k = 1:numel(lambdavals)
     dt = lambdavals(k)*dx;
     disp([num2str(k), '/', num2str(numel(lambdavals))]);
 
-    [U1, ranks1] = IMEX('111', u0(X, Y), dt, Nx, Ny, tf, interval, A, d, d, phi, tolerance);
+    [U1, ranks1] = IMEX('111', u0(X, Y), dt, Nx, Ny, tf, interval, A, d, d, phi, tolerance, r0);
     U_exact = u_exact(X, Y, tf);
     errors(k, 1) = dx*dy*(sum(sum(abs(U1 - U_exact))));
 
-    [U2, ranks2] = IMEX('222', u0(X, Y), dt, Nx, Ny, tf, interval, A, d, d, phi, tolerance);
+    [U2, ranks2] = IMEX('222', u0(X, Y), dt, Nx, Ny, tf, interval, A, d, d, phi, tolerance, r0);
     U_exact = u_exact(X, Y, tf);
     errors(k, 2) = dx*dy*(sum(sum(abs(U2 - U_exact))));
 
-    [U3, ranks3] = IMEX('443', u0(X, Y), dt, Nx, Ny, tf, interval, A, d, d, phi, tolerance);
+    [U3, ranks3] = IMEX('443', u0(X, Y), dt, Nx, Ny, tf, interval, A, d, d, phi, tolerance, r0);
     U_exact = u_exact(X, Y, tf);
     errors(k, 3) = dx*dy*(sum(sum(abs(U3 - U_exact))));
 end
@@ -79,6 +80,7 @@ tf = 0.5;
 interval = [-pi, pi, -pi, pi];
 Nx = 300; Ny = 300;
 tolerance = 1e-8;
+r0 = 30;
 
 d = 1;
 gt = @(t) cos(pi*t/tf)*pi;
@@ -108,13 +110,13 @@ for k = 1:1%numel(lambdavals)
     dt = lambdavals(k)*dx;
     disp([num2str(k), '/', num2str(numel(lambdavals))]);
 
-    [U1, ranks1] = IMEX('111', u0(X, Y), dt, Nx, Ny, tf, interval, A, d, d, phi, tolerance);
+    [U1, ranks1] = IMEX('111', u0(X, Y), dt, Nx, Ny, tf, interval, A, d, d, phi, tolerance, r0);
     % errors(k, 1) = dx*dy*(sum(sum(abs(U1 - U_exact))));
 
-    [U2, ranks2] = IMEX('222', u0(X, Y), dt, Nx, Ny, tf, interval, A, d, d, phi, tolerance);
+    [U2, ranks2] = IMEX('222', u0(X, Y), dt, Nx, Ny, tf, interval, A, d, d, phi, tolerance, r0);
     % errors(k, 2) = dx*dy*(sum(sum(abs(U2 - U_exact))));
 
-    [U3, ranks3] = IMEX('443', u0(X, Y), dt, Nx, Ny, tf, interval, A, d, d, phi, tolerance);
+    [U3, ranks3] = IMEX('443', u0(X, Y), dt, Nx, Ny, tf, interval, A, d, d, phi, tolerance, r0);
     % errors(k, 3) = dx*dy*(sum(sum(abs(U3 - U_exact))));
 end
 
@@ -164,19 +166,20 @@ end
 
 %% TEST 3 - Lenard-Bernstien-Fokker-Planck Equation
 
-clc;  close all;
+clc; close all;
 
-tf = 0.5;
+tf = 15;
 interval = [-8, 8, -8, 8];
 Nx = 300; Ny = 300;
 tolerance = 1e-6;
+r0 = 30;
 
 % model-specific parameters
 R = 1/6; T = 3; 
 n = pi; vx_bar = 0; vy_bar = 0;
 fM = @(vx, vy, n, vx_bar, vy_bar, T) (n/(2*pi*R*T))*exp(-( ((vx-vx_bar).^2) + ((vy - vy_bar).^2) ) ./ (2*R*T));
 
-d = 15;
+d = 0.5;
 A = cell(2, 3);
     A{1, 1} = @(vx) (vx - vx_bar);
     A{1, 2} = @(t) -1;
@@ -184,7 +187,6 @@ A = cell(2, 3);
     A{2, 1} = @(vx) (1);
     A{2, 2} = @(t) -1;
     A{2, 3} = @(vy) (vy - vy_bar);
-
     
 u0 = @(Vx, Vy) fM(Vx, Vy, 1.990964530353041, 0.4979792385268875, 0, 2.46518981703837) + fM(Vx, Vy, 1.150628123236752, -0.8616676237412346, 0, 0.4107062104302872);
 phi = cell(1, 3);
@@ -195,25 +197,24 @@ phi = cell(1, 3);
 [Vx, Vy, dx, dy] = GetXY(Nx, Ny, interval);
 U_exact = fM(Vx, Vy, n, vx_bar, vy_bar, T);
 
-
-lambdavals = 0.15;%(0.1:0.02:2)';
-errors = zeros(numel(lambdavals), 3); % L1 norms for IMEX(1, 1, 1), (2, 2, 2), (4, 4, 3)
+lambdavals = 0.15;
+errors = zeros(3, 1877); % L1 norms for IMEX(1, 1, 1), (2, 2, 2), (4, 4, 3)
 
 for k = 1:numel(lambdavals)
     dt = lambdavals(k)*dx;
     disp([num2str(k), '/', num2str(numel(lambdavals))]);
 
-    [U1, ranks1] = IMEX('111', u0(Vx, Vy), dt, Nx, Ny, tf, interval, A, d, d, phi, tolerance);
-    errors(k, 1) = dx*dy*(sum(sum(abs(U1 - U_exact))));
+    [U1, ranks1] = IMEX('111', u0(Vx, Vy), dt, Nx, Ny, tf, interval, A, d, d, phi, tolerance, r0);
+    errors(1, :) = dx*dy*(sum(sum(abs(U1 - U_exact))));
 
-    [U2, ranks2] = IMEX('222', u0(Vx, Vy), dt, Nx, Ny, tf, interval, A, d, d, phi, tolerance);
-    errors(k, 2) = dx*dy*(sum(sum(abs(U2 - U_exact))));
+    [U2, ranks2] = IMEX('222', u0(Vx, Vy), dt, Nx, Ny, tf, interval, A, d, d, phi, tolerance, r0);
+    errors(2, :) = dx*dy*(sum(sum(abs(U2 - U_exact))));
 
-    [U3, ranks3] = IMEX('443', u0(Vx, Vy), dt, Nx, Ny, tf, interval, A, d, d, phi, tolerance);
-    errors(k, 3) = dx*dy*(sum(sum(abs(U3 - U_exact))));
+    [U3, ranks3] = IMEX('443', u0(Vx, Vy), dt, Nx, Ny, tf, interval, A, d, d, phi, tolerance, r0);
+    errors(3, :) = dx*dy*(sum(sum(abs(U3 - U_exact))));
 end
 
-figure(1); clf; surf(Vx, Vy, U3);
+figure(1); clf; surf(Vx, Vy, U1(:, :, end));
 colorbar;
 shading flat; % removes gridlines
 legend(sprintf('N_x = %s, N_y = %s', num2str(Nx, 3), num2str(Ny, 3)), 'Location','northwest');
@@ -225,9 +226,9 @@ shading flat; % removes gridlines
 xlabel('X'); ylabel('Y'); zlabel('U(X, Y)'); title([sprintf('U_{Exact} at time %s', num2str(tf, 4))]);
 
 figure(3); clf;
-loglog(lambdavals, errors(:, 1), 'black-', 'LineWidth', 1.5); hold on; % IMEX111
-loglog(lambdavals, errors(:, 2), 'blue-', 'LineWidth', 1.5); % IMEX222
-loglog(lambdavals, errors(:, 3), 'green-', 'LineWidth', 1.5); % DIRK3
+semilogy(errors(1, :), 'black-', 'LineWidth', 1.5); hold on; % IMEX111
+semilogy(errors(2, :), 'blue-', 'LineWidth', 1.5); % IMEX222
+semilogy(errors(3, :), 'green-', 'LineWidth', 1.5); % IMEX443
 title('IMEX Temporal Convergence at tf=15, Nx = Ny = 100'); xlabel('\lambda'); ylabel('L1 Error');
 legend('IMEX111', 'IMEX222', 'IMEX443');
 

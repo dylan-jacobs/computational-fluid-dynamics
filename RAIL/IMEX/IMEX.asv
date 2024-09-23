@@ -20,17 +20,9 @@ function [U, ranks] = IMEX(type, U, dt, Nx, Ny, tf, interval, A, d1, d2, phi, to
 
     [Vx, S, Vy] = svd(U);
     ranks = zeros(numel(tvals), 2);
-
-    % truncate solution to pre-set initial rank r0
-    Vx = Vx(:, 1:r0);
-    S = S(1:r0, 1:r0);
-    Vy = Vy(:, 1:r0);
-    ranks(1) = r0;
-
+    
+    
     [Dx, Dy, Dxx, Dyy] = spectral_matrix(interval(2) - interval(1), Nx, Ny, dx, dy, d1, d2);
-
-    % U_mtx = zeros(Nx, Ny, numel(tvals));
-    % U_mtx(:, :, 1) = U;
 
     for n = 2:numel(tvals)
         dt = tvals(n) - tvals(n-1);
@@ -44,7 +36,6 @@ function [U, ranks] = IMEX(type, U, dt, Nx, Ny, tf, interval, A, d1, d2, phi, to
                 [Vx, S, Vy, ranks(n, 2)] = IMEX443_timestep(Vx, S, Vy, tvals(n-1), dt, A, Dx, Dy, Dxx, Dyy, phi, tolerance);
   
         end
-        % U_mtx(:, :, n) = Vx*S*(Vy');
 
         % if mod(n, 1) == 0
         %     figure(1); clf; surf(X, Y, Vx*S*(Vy'));
