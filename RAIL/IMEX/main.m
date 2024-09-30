@@ -11,7 +11,7 @@ A = cell(2, 3);
     A{2, 1} = @(x) x;
     A{2, 2} = @(t) 1;
     A{2, 3} = @(y) y.^0;
-tf = 0.5;
+tf = 2.5;
 interval = [-2*pi, 2*pi, -2*pi, 2*pi];
 Nx = 100; Ny = 100;
 tolerance = 1e-8;
@@ -20,11 +20,16 @@ phi = cell(1, 3);
     phi{1, 1} = @(x, t) [exp(-(x.^2)), x.*exp(-(x.^2)), (x.^2).*exp(-(x.^2)), exp(-(x.^2))];
     phi{1, 2} = @(t) diag([6*d*exp(-2*d*t), -4*exp(-2*d*t), -4*d*exp(-2*d*t), -36*d*exp(-2*d*t)]);
     phi{1, 3} = @(y, t) [exp(-3*(y.^2)), y.*exp(-3*(y.^2)), exp(-3*(y.^2)), (y.^2).*exp(-3*(y.^2))];
+% turn source term off
+% phi = cell(1, 3);
+%     phi{1, 1} = @(x, t) 0;
+%     phi{1, 2} = @(t) 0;
+%     phi{1, 3} = @(y, t) 0;
 u_exact = @(x, y, t) exp(-((x.^2) + (3*y.^2) + (2*d*t)));
 u0 = @(x, y) u_exact(x, y, 0);
 [X, Y, dx, dy] = GetXY(Nx, Ny, interval);
 
-lambdavals = (0.1:0.02:2)';
+lambdavals = 0.05;%(0.1:0.02:2)';
 errors = zeros(numel(lambdavals), 3); % L1 norms for IMEX(1, 1, 1), (2, 2, 2), (4, 4, 3)
 
 for k = 1:numel(lambdavals)
@@ -76,9 +81,9 @@ legend('IMEX111', 'IMEX222', 'IMEX443');
 %% TEST 2: Swirling Deformation with Diffusion
 clc;  close all;
 
-tf = 0.5;
+tf = 2.5;
 interval = [-pi, pi, -pi, pi];
-Nx = 300; Ny = 300;
+Nx = 100; Ny = 100;
 tolerance = 1e-8;
 r0 = 30;
 
@@ -103,7 +108,7 @@ phi = cell(1, 3);
 
 [X, Y, dx, dy] = GetXY(Nx, Ny, interval);
 
-lambdavals = (0.1:0.02:2)';
+lambdavals = (0.15:0.02:2)';
 errors = zeros(numel(lambdavals), 3); % L1 norms for IMEX(1, 1, 1), (2, 2, 2), (4, 4, 3)
 
 for k = 1:1%numel(lambdavals)

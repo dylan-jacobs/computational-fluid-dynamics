@@ -11,7 +11,7 @@ A = cell(2, 3);
     A{2, 1} = @(x) x;
     A{2, 2} = @(t) 1;
     A{2, 3} = @(y) y.^0;
-tf = 0.5;
+tf = 2.5;
 interval = [-2*pi, 2*pi, -2*pi, 2*pi];
 Nx = 100; Ny = 100;
 tolerance = 1e-8;
@@ -20,11 +20,16 @@ phi = cell(1, 3);
     phi{1, 1} = @(x, t) [exp(-(x.^2)), x.*exp(-(x.^2)), (x.^2).*exp(-(x.^2)), exp(-(x.^2))];
     phi{1, 2} = @(t) diag([6*d*exp(-2*d*t), -4*exp(-2*d*t), -4*d*exp(-2*d*t), -36*d*exp(-2*d*t)]);
     phi{1, 3} = @(y, t) [exp(-3*(y.^2)), y.*exp(-3*(y.^2)), exp(-3*(y.^2)), (y.^2).*exp(-3*(y.^2))];
+% turn source term off
+% phi = cell(1, 3);
+%     phi{1, 1} = @(x, t) 0;
+%     phi{1, 2} = @(t) 0;
+%     phi{1, 3} = @(y, t) 0;
 u_exact = @(x, y, t) exp(-((x.^2) + (3*y.^2) + (2*d*t)));
 u0 = @(x, y) u_exact(x, y, 0);
 [X, Y, dx, dy] = GetXY(Nx, Ny, interval);
 
-lambdavals = (0.1:0.02:2)';
+lambdavals = 0.05;%(0.1:0.02:2)';
 errors = zeros(numel(lambdavals), 3); % L1 norms for IMEX(1, 1, 1), (2, 2, 2), (4, 4, 3)
 
 for k = 1:numel(lambdavals)
@@ -76,9 +81,9 @@ legend('IMEX111', 'IMEX222', 'IMEX443');
 %% TEST 2: Swirling Deformation with Diffusion
 clc;  close all;
 
-tf = 0.5;
+tf = 2.5;
 interval = [-pi, pi, -pi, pi];
-Nx = 300; Ny = 300;
+Nx = 100; Ny = 100;
 tolerance = 1e-8;
 r0 = 30;
 
@@ -103,7 +108,7 @@ phi = cell(1, 3);
 
 [X, Y, dx, dy] = GetXY(Nx, Ny, interval);
 
-lambdavals = (0.1:0.02:2)';
+lambdavals = (0.15:0.02:2)';
 errors = zeros(numel(lambdavals), 3); % L1 norms for IMEX(1, 1, 1), (2, 2, 2), (4, 4, 3)
 
 for k = 1:1%numel(lambdavals)
@@ -166,9 +171,9 @@ end
 
 %% TEST 3 - Lenard-Bernstien-Fokker-Planck Equation
 
-clc;  close all;
+clc; close all;
 
-tf = 0.5;
+tf = 15;
 interval = [-8, 8, -8, 8];
 Nx = 300; Ny = 300;
 tolerance = 1e-6;
@@ -179,7 +184,7 @@ R = 1/6; T = 3;
 n = pi; vx_bar = 0; vy_bar = 0;
 fM = @(vx, vy, n, vx_bar, vy_bar, T) (n/(2*pi*R*T))*exp(-( ((vx-vx_bar).^2) + ((vy - vy_bar).^2) ) ./ (2*R*T));
 
-d = 15;
+d = 0.5;
 A = cell(2, 3);
     A{1, 1} = @(vx) (vx - vx_bar);
     A{1, 2} = @(t) -1;
@@ -187,7 +192,6 @@ A = cell(2, 3);
     A{2, 1} = @(vx) (1);
     A{2, 2} = @(t) -1;
     A{2, 3} = @(vy) (vy - vy_bar);
-
     
 u0 = @(Vx, Vy) fM(Vx, Vy, 1.990964530353041, 0.4979792385268875, 0, 2.46518981703837) + fM(Vx, Vy, 1.150628123236752, -0.8616676237412346, 0, 0.4107062104302872);
 phi = cell(1, 3);
@@ -198,9 +202,8 @@ phi = cell(1, 3);
 [Vx, Vy, dx, dy] = GetXY(Nx, Ny, interval);
 U_exact = fM(Vx, Vy, n, vx_bar, vy_bar, T);
 
-
 lambdavals = 0.15;
-errors = zeros(3, 64); % L1 norms for IMEX(1, 1, 1), (2, 2, 2), (4, 4, 3)
+errors = zeros(3, 1877); % L1 norms for IMEX(1, 1, 1), (2, 2, 2), (4, 4, 3)
 
 for k = 1:numel(lambdavals)
     dt = lambdavals(k)*dx;
@@ -216,7 +219,7 @@ for k = 1:numel(lambdavals)
     errors(3, :) = dx*dy*(sum(sum(abs(U3 - U_exact))));
 end
 
-figure(1); clf; surf(Vx, Vy, U3(:, :, end));
+figure(1); clf; surf(Vx, Vy, U1(:, :, end));
 colorbar;
 shading flat; % removes gridlines
 legend(sprintf('N_x = %s, N_y = %s', num2str(Nx, 3), num2str(Ny, 3)), 'Location','northwest');
@@ -226,11 +229,11 @@ figure(2); clf; surf(Vx, Vy, U_exact);
 colorbar;
 shading flat; % removes gridlines
 xlabel('X'); ylabel('Y'); zlabel('U(X, Y)'); title([sprintf('U_{Exact} at time %s', num2str(tf, 4))]);
-%%
+
 figure(3); clf;
-semilogy(errors(1, 1, :), [1, 64]), 'black-', 'LineWidth', 1.5); hold on; % IMEX111
-semilogy(reshape(errors(1, 2, :), [1, 64]), 'blue-', 'LineWidth', 1.5); % IMEX222
-semilogy(reshape(errors(1, 3, :), [1, 64]), 'green-', 'LineWidth', 1.5); % IMEX443
+semilogy(errors(1, :), 'black-', 'LineWidth', 1.5); hold on; % IMEX111
+semilogy(errors(2, :), 'blue-', 'LineWidth', 1.5); % IMEX222
+semilogy(errors(3, :), 'green-', 'LineWidth', 1.5); % IMEX443
 title('IMEX Temporal Convergence at tf=15, Nx = Ny = 100'); xlabel('\lambda'); ylabel('L1 Error');
 legend('IMEX111', 'IMEX222', 'IMEX443');
 
