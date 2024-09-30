@@ -1,0 +1,12 @@
+function [U, rank] = BackwardEulerTimestep(Vr0, S0, Vz0, R, dt, Drr, Dzz)
+
+    N = size(Drr);
+
+    Vr0_star = Vr0; Vz0_star = Vz0;
+   
+    K0 = Vr0*S0;
+    L0 = Vz0*(S0');
+    
+    K1 = sylvester(eye(N) - (dt*Drr), ((-dt)*((Dzz*Vz0_star)')*Vz0_star), K0);
+    L1 = sylvester(eye(N) - (dt*Dzz), ((-dt)*((Drr*Vr0_star)')*Vz0_star), L0);
+end
