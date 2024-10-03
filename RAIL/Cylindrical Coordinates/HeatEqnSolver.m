@@ -1,13 +1,17 @@
-function [U, ranks] = HeatEqnSolver(type, U, dt, Nr, Nz, tf, interval, d1, d2, tolerance, r0)
+function [U, ranks] = HeatEqnSolver(type, U, dt, Nr, Nz, tf, interval, tolerance, r0)
     [R, Z, dr, dz] = GetRZ(Nr, Nz, interval);
+
+    rvals = R(:, 1); % get one column of r values
 
     tvals = (0:dt:tf)';
     if tvals(end) ~= tf
         tvals = [tvals; tf];
     end
 
-    Drr = (1./(dr^2)) .* (diag(1./R) .* gallery('tridiag', Nr, R(2:end, 1)-(dr/2), -2*R(1:end, 1), R(1:end-1, 1)+(dr/2)));
-    Drr(1, 1) = -(R(1) + (dr/2));
+    Drr = gallery('tridiag', Nr, rvals(2:end)-(dr/2), -2*rvals(1:end), rvals(1:end-1)+(dr/2));
+    Drr(1, 1) = -(rvals(1) + (dr/2));
+    Drr = (1./(dr^2)) .* (diag(1./rvals) * Drr);
+
     Dzz = (1./(dz^2)) .* gallery('tridiag', Nz, 1, -2, 1);
 
     [Vr, S, Vz] = svd(U);
@@ -19,18 +23,18 @@ function [U, ranks] = HeatEqnSolver(type, U, dt, Nr, Nz, tf, interval, d1, d2, t
     Vr = Vr(:, 1:r0);
     S = S(1:r0, 1:r0);
     Vz = Vz(:, 1:r0);
-    ranks(1) = r0;
+    ranks(1, 2) = r0;
   
     for n = 2:numel(tvals)
         dt = tvals(n) - tvals(n-1);
 
         switch type
             case '1'
-                [Vr, S, Vz, ~] = BackwardEulerTimestep(Vr, S, Vz, R, dt, Drr, Dzz, tolerance);
+                [Vr, S, Vz, ranks(n, 2)] = BackwardEulerTimestep(Vr, S, Vz, rvals, dt, Drr, Dzz, tolerance);
         end
 
         % if mod(n, 1) == 0
-        %     figure(1); clf; surf(R, Z, U);
+        %     figure(1); clf; surf(R, Z, Vr*S*(Vz'));
         %     colorbar;
         %     shading flat; % removes gridlines
         %     xlabel('X'); ylabel('Y'); zlabel('U(X, Y)'); title([sprintf('RAIL approximation at time %s', num2str(tf, 4))]);
