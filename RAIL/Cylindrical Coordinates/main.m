@@ -3,16 +3,16 @@ clear variables; close all; clc;
 tf = 0.5;
 Rf = 1; Zf = 1;
 interval = [0, Rf, 0, 1];
-Nr = 100; Nz = 100;
+Nr = 50; Nz = 50;
 r0 = 30;
-tolerance = 1e-12;
+tolerance = 1e-6;
 
 j01 = 2.40482555769577; % first root of bessel function
-u0 = @(r, z) (besselj(0, (j01/Rf).*r)) .* (sin((pi/Rf).*z));
-u_exact = @(r, z, t) (exp(-t*((((j01/Rf)^2)) + (((pi/Rf)^2)))).*u0(r, z));
+u0 = @(r, z) (besselj(0, (j01/Rf).*r)) .* (sin((pi/Zf).*z));
+u_exact = @(r, z, t) (exp(-t*((((j01/Rf)^2)) + (((pi/Zf)^2)))).*u0(r, z));
 [R, Z, dr, dz] = GetRZ(Nr, Nz, interval);
 
-lambdavals = (0.02:0.02:1)';
+lambdavals = (0.02:0.02:5)';
 errors = zeros(numel(lambdavals), 3); % L1 norm for B. Euler, DIRK2, and DIRK3
 
 for k = 1:numel(lambdavals)
