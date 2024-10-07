@@ -8,11 +8,13 @@ function [U, ranks] = HeatEqnSolver(type, U, dt, Nr, Nz, tf, interval, tolerance
         tvals = [tvals; tf];
     end
 
-    Drr = gallery('tridiag', Nr, rvals(2:end)-(dr/2), -2*rvals(1:end), rvals(1:end-1)+(dr/2));
+    Drr = gallery('tridiag', Nr, rvals(1:end-1)+(dr/2), -2*rvals, rvals(1:end-1)+(dr/2));
     Drr(1, 1) = -(rvals(1) + (dr/2));
     Drr = (1./(dr^2)) .* (diag(1./rvals) * Drr);
 
-    Dzz = (1./(dz^2)) .* gallery('tridiag', Nz, 1, -2, 1);
+    Dzz = gallery('tridiag', Nz, 1, -2, 1);
+    Dzz = (1./(dz^2)) .* Dzz;
+
 
     [Vr, S, Vz] = svd(U);
     ranks = zeros(numel(tvals), 2);
