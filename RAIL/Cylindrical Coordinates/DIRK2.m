@@ -1,0 +1,38 @@
+% Completes 1 DIRK2 timestep, updating the bases Vx0, S0, Vy0 --> Vx, S, Vy
+% Inputs: bases: Vx0, S0, Vy0
+%         timestep size: dt
+%         differentiation matrices: Dxx, Dyy
+%         final truncation tolerance: tolerance
+% Outputs: updated vases Vx, S, Vy
+%          rank: r1
+
+
+function [Vr, S, Vz, r1] = DIRK2(Vr0, S0, Vz0, rvals, dt, Drr, Dzz, tolerance)
+    
+    nu = 1-(sqrt(2)/2);
+
+    % Stage 1: Backward Euler
+    [Vr1, S1, Vz1, ~] = BackwardEuler(Vr0, S0, Vz0, rvals, nu*dt, Drr, Dzz, tolerance);
+
+    W0 = (Vr0*S0*(Vz0')) + ((1-nu)*dt*(((Drr*(Vr1)*S1*(Vz1')) + ((Vr1)*S1*((Dzz*Vz1)')))));
+
+    % Reduced Augmentation
+    % Predict V_dagger using B. Euler for second stage
+    [Vr1_dagger, ~, Vz1_dagger, ~] = BackwardEuler(Vr0, S0, Vz0, rvals, dt, Drr, Dzz, tolerance);
+    [Vr_star, Vz_star] = reduced_augmentation([Vr1_dagger, Vr1, Vr0], [Vz1_dagger, Vz1, Vz0], rvals);
+
+    % Stage 2: KLS Steps
+    % K/L-Step
+    K1 = sylvester(eye(size(Drr)) - (nu*dt*Drr), -nu*dt*(Dzz*Vz_star)'*Vz_star, W0*Vz_star);
+    L1 = sylvester(eye(size(Dzz)) - (nu*dt*Dzz), -nu*dt*(Drr*Vr_star)'*(rvals .* Vr_star), (W0')*(rvals .* Vr_star));
+
+    % Get bases
+    [Vr_ddagger, ~] = qr2(K1, rvals); [Vz_ddagger, ~] = qr(L1, 0);
+
+    % Reduced Augmentation
+    [Vr, Vz] = reduced_augmentation([Vr_ddagger, Vr1, Vr0], [Vz_ddagger, Vz1, Vz0], rvals);
+
+    % S-Step
+    S = sylvester(eye(size(Vr, 2)) - (nu*dt*((rvals .* Vr)')*Drr*Vr), -nu*dt*(Dzz*Vz)'*Vz, ((rvals .* Vr)')*W0*Vz);
+    [Vr, S, Vz, r1] = truncate_svd(Vr, S, Vz, tolerance);
+end
