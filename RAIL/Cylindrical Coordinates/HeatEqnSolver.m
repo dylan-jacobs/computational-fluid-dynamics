@@ -2,7 +2,6 @@ function [U, ranks] = HeatEqnSolver(type, U, dt, Nr, Nz, tf, interval, tolerance
     [R, Z, dr, dz] = GetRZ(Nr, Nz, interval);
 
     rvals = R(:, 1); % get one column of r values
-
     tvals = (0:dt:tf)';
     if tvals(end) ~= tf
         tvals = [tvals; tf];
@@ -10,13 +9,12 @@ function [U, ranks] = HeatEqnSolver(type, U, dt, Nr, Nz, tf, interval, tolerance
 
     Drr = gallery('tridiag', Nr, rvals(1:end-1)+(dr/2), -2*rvals, rvals(1:end-1)+(dr/2));
     Drr(1, 1) = -(rvals(1) + (dr/2));
-    Drr = (1./(dr^2)) .* (diag(1./rvals) * Drr);
+    Drr = (1/(dr^2)) * (diag(1./rvals) * Drr);
 
-    Dzz = gallery('tridiag', Nz, 1, -2, 1);
-    Dzz = (1./(dz^2)) .* Dzz;
+    Dzz = gallery('tridiag', Nz, 1, -2, 1); % centered nodes
+    Dzz = (1/(dz^2)) * Dzz;
 
-
-    [Vr, S, Vz] = svd(U);
+    [Vr, S, Vz] = svd2(U, rvals);
     ranks = zeros(numel(tvals), 2);
     ranks(:, 1) = tvals;
     r0 = min(r0, size(Vr, 2));
@@ -32,7 +30,9 @@ function [U, ranks] = HeatEqnSolver(type, U, dt, Nr, Nz, tf, interval, tolerance
 
         switch type
             case '1'
-                [Vr, S, Vz, ranks(n, 2)] = BackwardEulerTimestep(Vr, S, Vz, rvals, dt, Drr, Dzz, tolerance);
+                [Vr, S, Vz, ranks(n, 2)] = BackwardEuler(Vr, S, Vz, rvals, dt, Drr, Dzz, tolerance);
+            case '2'
+                [Vr, S, Vz, ranks(n, 2)] = DIRK2(Vr, S, Vz, rvals, dt, Drr, Dzz, tolerance);
         end
 
         % if mod(n, 1) == 0
@@ -44,4 +44,9 @@ function [U, ranks] = HeatEqnSolver(type, U, dt, Nr, Nz, tf, interval, tolerance
         % end
     end
     U = Vr*S*(Vz');
+end
+
+function [U, S, V] = svd2(A, rvals)
+    [U, S, V] = svd(sqrt(rvals) .* A, 0);
+    U = (1./sqrt(rvals)) .* U;
 end
