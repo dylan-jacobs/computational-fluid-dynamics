@@ -7,7 +7,8 @@ function [Vr, Vz] = reduced_augmentation(Vr_aug, Vz_aug, rvals)
     rr = find(diag(SigmaR) > tolerance, 1, 'last');
     rz = find(diag(SigmaZ) > tolerance, 1, 'last');
     r = max(rr, rz);
-    Vr = Qr*Ur(:, 1:r); Vz = Qz*Uz(:, 1:r);
+    Vr = Qr*Ur(:, 1:r);
+    Vz = Qz*Uz(:, 1:r);
 end
 
 

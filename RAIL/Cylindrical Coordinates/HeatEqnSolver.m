@@ -9,10 +9,14 @@ function [U, ranks] = HeatEqnSolver(type, U, dt, Nr, Nz, tf, interval, tolerance
 
     Drr = gallery('tridiag', Nr, rvals(1:end-1)+(dr/2), -2*rvals, rvals(1:end-1)+(dr/2));
     Drr(1, 1) = -(rvals(1) + (dr/2));
+    Drr(end, end-1) = ((1/3) * (rvals(end) + (dr/2))) + (rvals(end) - (dr/2));
+    Drr(end, end) =  ((-3) * (rvals(end) + (dr/2))) - (rvals(end) - (dr/2));
     Drr = (1/(dr^2)) * (diag(1./rvals) * Drr);
 
-    Dzz = gallery('tridiag', Nz, 1, -2, 1); % centered nodes
-    Dzz = (1/(dz^2)) * Dzz;
+
+    % Dzz = gallery('tridiag', Nz, 1, -2, 1); % centered nodes
+    Dzz = (2*pi/interval(4))^2*toeplitz([-1/(3*(2*dz/interval(4))^2)-1/6 ...
+  .5*(-1).^(2:Nz)./sin((2*pi*dz/interval(4))*(1:Nz-1)/2).^2]);
 
     [Vr, S, Vz] = svd2(U, rvals);
     ranks = zeros(numel(tvals), 2);
@@ -33,13 +37,15 @@ function [U, ranks] = HeatEqnSolver(type, U, dt, Nr, Nz, tf, interval, tolerance
                 [Vr, S, Vz, ranks(n, 2)] = BackwardEuler(Vr, S, Vz, rvals, dt, Drr, Dzz, tolerance);
             case '2'
                 [Vr, S, Vz, ranks(n, 2)] = DIRK2(Vr, S, Vz, rvals, dt, Drr, Dzz, tolerance);
+            case '3'
+                [Vr, S, Vz, ranks(n, 2)] = DIRK3(Vr, S, Vz, rvals, dt, Drr, Dzz, tolerance);
         end
 
         % if mod(n, 1) == 0
         %     figure(1); clf; surf(R, Z, Vr*S*(Vz'));
         %     colorbar;
         %     shading flat; % removes gridlines
-        %     xlabel('X'); ylabel('Y'); zlabel('U(X, Y)'); title([sprintf('RAIL approximation at time %s', num2str(tf, 4))]);
+        %     xlabel('R'); ylabel('Z'); zlabel('U(R, Z)'); title([sprintf('RAIL approximation at time %s', num2str(tf, 4))]);
         %     view(3);
         % end
     end

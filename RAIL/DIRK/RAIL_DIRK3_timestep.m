@@ -33,7 +33,7 @@ function [Vx3, S3, Vy3, r3] = RAIL_DIRK3_timestep(Vx0, S0, Vy0, dt, Dxx, Dyy, to
     [Vx_ddagger2, ~] = qr(K2, 0); [Vy_ddagger2, ~] = qr(L2, 0);
 
     % Reduced Augmentation
-    [Vx2, Vy2] = reduced_augmentation([Vx_ddagger2, Vx1, Vx0], [Vy_ddagger2, Vx1, Vy0]);
+    [Vx2, Vy2] = reduced_augmentation([Vx_ddagger2, Vx1, Vx0], [Vy_ddagger2, Vy1, Vy0]);
 
     % S-Step
     S2 = sylvester(eye(size(Vx2, 2)) - (nu*dt*(Vx2')*Dxx*Vx2), -nu*dt*(Dyy*Vy2)'*Vy2, (Vx2')*W1*Vy2);
@@ -56,7 +56,7 @@ function [Vx3, S3, Vy3, r3] = RAIL_DIRK3_timestep(Vx0, S0, Vy0, dt, Dxx, Dyy, to
     [Vx_ddagger3, ~] = qr(K3, 0); [Vy_ddagger3, ~] = qr(L3, 0);
 
     % Reduced Augmentation
-    [Vx3, Vy3] = reduced_augmentation([Vx_ddagger3, Vx2, Vx1, Vx0], [Vy_ddagger3, Vx2, Vx1, Vy0]);
+    [Vx3, Vy3] = reduced_augmentation([Vx_ddagger3, Vx2, Vx1, Vx0], [Vy_ddagger3, Vy2, Vy1, Vy0]);
 
     % S-Step
     S3 = sylvester(eye(size(Vx3, 2)) - (nu*dt*(Vx3')*Dxx*Vx3), -nu*dt*(Dyy*Vy3)'*Vy3, (Vx3')*W2*Vy3);

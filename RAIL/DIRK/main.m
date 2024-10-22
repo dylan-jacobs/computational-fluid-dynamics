@@ -3,9 +3,9 @@
 clc; clear variables; close all;
 
 d1 = 1/4; d2 = 1/9;
-tf = 0.5;
+tf = 0.1;
 interval = [0, 2*pi, 0, 2*pi];
-Nx = 200; Ny = 200;
+Nx = 100; Ny = 100;
 tolerance = 1e-6;
 u0 = @(x, y) (sin(x).*sin(y)) + (sin(2*x).*sin(2*y));
 u_exact = @(x, y, t) (exp(-(d1+d2)*t).*sin(x).*sin(y)) + (exp(-(d1+d2)*4*t).*sin(2*x).*sin(2*y));
@@ -18,15 +18,15 @@ for k = 1:numel(lambdavals)
     dt = lambdavals(k)*dx;
     disp([num2str(k), '/', num2str(numel(lambdavals))]);
 
-    [U1, ~] = Backward_Euler(u0(X, Y), dt, Nx, Ny, tf, interval, d1, d2, tolerance);
+    [U1, ~] = HeatEquationSolver('1', u0(X, Y), dt, Nx, Ny, tf, interval, d1, d2, tolerance);
     U_exact = u_exact(X, Y, tf);
     errors(k, 1) = dx*dy*(sum(sum(abs(U1 - U_exact))));
 
-    [U2, ~] = DIRK2(u0(X, Y), dt, Nx, Ny, tf, interval, d1, d2, tolerance);
+    [U2, ~] = HeatEquationSolver('2', u0(X, Y), dt, Nx, Ny, tf, interval, d1, d2, tolerance);
     U_exact = u_exact(X, Y, tf);
     errors(k, 2) = dx*dy*(sum(sum(abs(U2 - U_exact))));
 
-    [U3, ~] = DIRK3(u0(X, Y), dt, Nx, Ny, tf, interval, d1, d2, tolerance);
+    [U3, ~] = HeatEquationSolver('3', u0(X, Y), dt, Nx, Ny, tf, interval, d1, d2, tolerance);
     U_exact = u_exact(X, Y, tf);
     errors(k, 3) = dx*dy*(sum(sum(abs(U3 - U_exact))));
 end

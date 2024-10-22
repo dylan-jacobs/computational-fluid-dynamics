@@ -31,7 +31,7 @@ function [Vx, S, Vy, r1] = RAIL_DIRK2_timestep(Vx0, S0, Vy0, dt, Dxx, Dyy, toler
     [Vx_ddagger, ~] = qr(K1, 0); [Vy_ddagger, ~] = qr(L1, 0);
 
     % Reduced Augmentation
-    [Vx, Vy] = reduced_augmentation([Vx_ddagger, Vx1, Vx0], [Vy_ddagger, Vx1, Vy0]);
+    [Vx, Vy] = reduced_augmentation([Vx_ddagger, Vx1, Vx0], [Vy_ddagger, Vy1, Vy0]);
 
     % S-Step
     S = sylvester(eye(size(Vx, 2)) - (nu*dt*(Vx')*Dxx*Vx), -nu*dt*(Dyy*Vy)'*Vy, (Vx')*W0*Vy);
