@@ -63,14 +63,14 @@ legend('Backward Euler', 'DIRK2', 'DIRK3');
 
 clear variables; close all; clc;
 
-tf = 5;
+tf = 1;
 Rf = 14; L = 14;
 interval = [0, Rf, 0, L];
 Nr = 80; Nz = 80;
 r0 = 10;
 tolerance = 1e-6;
 
-u0 = @(r, z) 0.8*(exp(-15*((r - 7).^2 + (z - 4).^2))) + 0.5*(exp(-15*((r - 7).^2 + (z - 12).^2)));
+u0 = @(r, z) 0.8*(exp(-15*((r).^2 + (z - 4).^2))) + 0.5*(exp(-15*((r).^2 + (z - 12).^2)));
 % u_exact = @(r, z, t) (exp(-t*(((j01/Rf)^2) + (2*pi/L)^2))*u0(r, z));
 [R, Z, dr, dz] = GetRZ(Nr, Nz, interval);
 

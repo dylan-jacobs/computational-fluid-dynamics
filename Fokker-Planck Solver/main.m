@@ -3,16 +3,15 @@
 clc; clear variables; close all;
 
 % Fokker-Planck parameters
-u = 1; % advection velocity
+u = 0; % advection velocity
 C = @(vx, t) (vx - u); 
 D = @(vx) vx.^0;
-tf = 3;
-interval = [-pi, 2*pi];
+tf = 10;
+interval = [-pi, pi];
 Nx = 100;
-X = linspace(interval(1), interval(2), Nx + 1)';
-dx = X(2) - X(1);
-C_max = max(0.5*(C(X).^2));
-D_max = max(D(X));
+[xvals, dx] = GetXVals(Nx, interval);
+C_max = max(0.5*(C(xvals, tf).^2));
+D_max = max(D(xvals));
 
 % Maxwellian parameters
 R = 1/6;
@@ -28,28 +27,44 @@ f_M1 = @(vx) (n1/sqrt(2*pi*R*T1)).*exp(-((vx-vxbar1).^2)./(2*R*T1));
 f_M2 = @(vx) (n2/sqrt(2*pi*R*T2)).*exp(-((vx-vxbar2).^2)./(2*R*T2));
 
 f0 = @(vx) f_M1(vx) + f_M2(vx);
-f_exact = exp(-X.^2);
+f_exact = @(vx) (pi/sqrt(2*pi*R*3)).*exp(-((vx).^2)./(2*R*3));
+f_exact = f_exact(xvals);
 
-lambdavals = 1;%(0.1:0.1:1)';
-errors = zeros(numel(lambdavals), 1); % L1 norm for F. Euler
+lambdavals = 0.5;%(0.5:0.1:1)';
 
 for k = 1:numel(lambdavals)
     dt = lambdavals(k)*(dx^2)/(2*((C_max*dx) + D_max));
     disp([num2str(k), '/', num2str(numel(lambdavals))]);
 
-    [f] = FokkerPlanckSolver('1', f0(X), dt, Nx, tf, interval, C, D);
-    errors(k, 1) = dx*(sum(abs(f - f_exact))); % L1 error
+    [f, data] = FokkerPlanckSolver('1', f0(xvals), dt, Nx, tf, interval, C, D, false, f_exact);
+    % errors(k, 1) = dx*(sum(abs(f - f_exact))); % L1 error
 end
 
-figure(1); clf; plot(X, f);
+l1 = data(:, 1);
+positivity = data(:, 2);
+relative_entropy = data(:, 3);
+mass = data(:, 4);
+tvals = data(:, 5);
+
+figure(1); clf; plot(xvals, f, 'blue-', 'LineWidth', 1.5);
 legend(sprintf('N_x = %s', num2str(Nx, 3)), 'Location','northwest');
-xlabel('V_x'); ylabel('f(V_x)'); title([sprintf('Forward Euler approximation of 1D Fokker-Planck system at time %s', num2str(tf, 4))]);
+xlabel('v_x'); ylabel('f(v_x)'); title([sprintf('Forward Euler approximation of 1D Fokker-Planck system at time %s', num2str(tf, 4))]);
 
-figure(2); clf; plot(X, f_exact);
-xlabel('V_x'); ylabel('f(V_x)'); title([sprintf('f_{exact} at time t=%s', num2str(tf, 4))]);
+figure(2); clf; plot(xvals, f_exact, 'blue-', 'LineWidth', 1.5);
+xlabel('v_x'); ylabel('f(v_x)'); title([sprintf('f_{exact} at time t=%s', num2str(tf, 4))]);
 
-figure(3); clf;
-loglog(lambdavals, errors(:, 1), 'black-', 'LineWidth', 1.5); hold on; % B. Euler
-loglog(lambdavals, 0.08*lambdavals, 'black--', 'LineWidth', 1); % Order 1
-title(sprintf('Forward Euler Temporal Convergence at tf=%s, Nx=%s', num2str(tf), num2str(Nx))); xlabel('\lambda'); ylabel('L1 Error');
-legend('Forward Euler', 'Order 1');
+% l1 decay
+figure(3); clf; semilogy(tvals, l1, 'black-', 'LineWidth', 1.5);
+xlabel('t'); ylabel('L_1(f(V_x))'); title('L_1 decay of numerical solution over time');
+
+% Positivity
+figure(4); clf; plot(tvals, positivity, 'green-', 'LineWidth', 1.5);
+xlabel('t'); ylabel('min(f(V_x))'); title('Minimum values of numerical solution over time');
+
+% Relative entropy
+figure(5); clf; plot(tvals, relative_entropy, 'magenta-', 'LineWidth', 1.5);
+xlabel('t'); ylabel('Relative entropy'); title('Relative entropy of numerical solution over time');
+
+% Mass
+figure(6); clf; plot(tvals, mass, 'red-', 'LineWidth', 1.5);
+xlabel('t'); ylabel('mass'); title('Mass of numerical solution over time');
