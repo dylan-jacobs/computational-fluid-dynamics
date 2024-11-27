@@ -10,7 +10,7 @@
 % interval = spatial interval
 % C    = advection function
 % D    = diffusive function
-function [f, data] = FokkerPlanckSolver(type, f, dt, Nx, tf, interval, C, D, plotTimeSteps, f_exact)
+function [f, data] = FokkerPlanckSolver(type, f, dt, Nx, tf, interval, B, D, plotTimeSteps, f_exact)
     [xvals, dx] = GetXVals(Nx, interval);
 
     tvals = (0:dt:tf)';
@@ -27,10 +27,10 @@ function [f, data] = FokkerPlanckSolver(type, f, dt, Nx, tf, interval, C, D, plo
         dt = tvals(n) - tvals(n-1);
         switch (type)
             case '1'
-                [f] = ForwardEulerTimestep(f, dt, dx, tvals(n), xvals, C, D);
+                [f] = ForwardEulerTimestep(f, dt, dx, tvals(n), xvals, B, D);
         end
 
-        l1(n) = dx*sum(abs(f));
+        l1(n) = dx*sum(abs(f-f_exact));
         positivity(n) = min(f);
         relative_entropy(n) = dx*sum(f.*(log(f./f_exact)));
         mass(n) = dx*sum(f);

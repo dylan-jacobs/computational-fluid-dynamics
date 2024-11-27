@@ -4,13 +4,13 @@ clc; clear variables; close all;
 
 % Fokker-Planck parameters
 u = 0; % advection velocity
-C = @(vx, t) (vx - u); 
+B = @(vx, t) (vx - u); 
 D = @(vx) vx.^0;
 tf = 10;
 interval = [-pi, pi];
 Nx = 100;
 [xvals, dx] = GetXVals(Nx, interval);
-C_max = max(0.5*(C(xvals, tf).^2));
+B_max = max(0.5*(B([xvals(2:end); xvals(end)+dx], tf).^2) - 0.5*(B([xvals(1)-dx; xvals(1:end-1)], tf).^2));
 D_max = max(D(xvals));
 
 % Maxwellian parameters
@@ -33,10 +33,10 @@ f_exact = f_exact(xvals);
 lambdavals = 0.5;%(0.5:0.1:1)';
 
 for k = 1:numel(lambdavals)
-    dt = lambdavals(k)*(dx^2)/(2*((C_max*dx) + D_max));
+    dt = lambdavals(k)*(dx^2)/(2*((B_max*dx) + D_max));
     disp([num2str(k), '/', num2str(numel(lambdavals))]);
 
-    [f, data] = FokkerPlanckSolver('1', f0(xvals), dt, Nx, tf, interval, C, D, false, f_exact);
+    [f, data] = FokkerPlanckSolver('1', f0(xvals), dt, Nx, tf, interval, B, D, true, f_exact);
     % errors(k, 1) = dx*(sum(abs(f - f_exact))); % L1 error
 end
 
@@ -66,5 +66,5 @@ figure(5); clf; plot(tvals, relative_entropy, 'magenta-', 'LineWidth', 1.5);
 xlabel('t'); ylabel('Relative entropy'); title('Relative entropy of numerical solution over time');
 
 % Mass
-figure(6); clf; plot(tvals, mass, 'red-', 'LineWidth', 1.5);
-xlabel('t'); ylabel('mass'); title('Mass of numerical solution over time');
+figure(6); clf; plot(tvals, abs(mass-mass(1))/mass(1), 'red-', 'LineWidth', 1.5);
+xlabel('t'); ylabel('relative mass'); title('Relative mass of numerical solution over time');
