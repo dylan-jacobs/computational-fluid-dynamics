@@ -5,12 +5,12 @@ clc; clear variables; close all;
 % Fokker-Planck parameters
 u = 0; % advection velocity
 B = @(vx, t) (vx - u); 
-D = @(vx) vx.^0;
+D = @(vx) 0.5*(vx.^0);
 tf = 10;
 interval = [-pi, pi];
 Nx = 100;
 [xvals, dx] = GetXVals(Nx, interval);
-B_max = max(0.5*(B([xvals(2:end); xvals(end)+dx], tf).^2) - 0.5*(B([xvals(1)-dx; xvals(1:end-1)], tf).^2));
+B_max = max(0.5*(B([xvals(1:end); xvals(end)+dx], tf).^2) - 0.5*(B([xvals(1)-dx; xvals(1:end)], tf).^2));
 D_max = max(D(xvals));
 
 % Maxwellian parameters
@@ -36,7 +36,7 @@ for k = 1:numel(lambdavals)
     dt = lambdavals(k)*(dx^2)/(2*((B_max*dx) + D_max));
     disp([num2str(k), '/', num2str(numel(lambdavals))]);
 
-    [f, data] = FokkerPlanckSolver('1', f0(xvals), dt, Nx, tf, interval, B, D, true, f_exact);
+    [f, data] = FokkerPlanckSolver('1', f0(xvals), dt, Nx, tf, interval, B, D, false, f_exact);
     % errors(k, 1) = dx*(sum(abs(f - f_exact))); % L1 error
 end
 
