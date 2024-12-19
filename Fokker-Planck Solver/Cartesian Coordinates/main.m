@@ -1,14 +1,14 @@
 % solves 1D Fokker-Planck system
 %% TEST 1 -- Accuracy
-clc; clear variables; close all;
+% clc; clear variables; close all;
 
 % Fokker-Planck parameters
 u = 0; % advection velocity
 B = @(vx, t) (vx - u); 
 D = @(vx) 0.5*(vx.^0);
-tf = 10;
-interval = [-pi, pi];
-Nx = 100;
+tf = 20;
+interval = [-8, 8];
+Nx = 200;
 [xvals, dx] = GetXVals(Nx, interval);
 B_max = max(0.5*(B([xvals(1:end); xvals(end)+dx], tf).^2) - 0.5*(B([xvals(1)-dx; xvals(1:end)], tf).^2));
 D_max = max(D(xvals));

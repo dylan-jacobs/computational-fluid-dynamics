@@ -1,0 +1,122 @@
+\documentclass{article}
+\usepackage{amsmath}
+\usepackage{graphicx} % Required for inserting images
+
+\title{Dr. Nakao Research Journal}
+\author{Dylan Jacobs}
+\date{October 2024}
+
+\begin{document}
+
+\maketitle
+
+\section{RAIL for Cylindrical Coordinates}
+If we consider the 2D spatial heat equation
+\begin{equation}
+    \frac{\partial \mathbf{U}}{\partial t} = \frac{1}{\mathbf{r}}\frac{\partial}{\partial \mathbf{r}}\left(\mathbf{r}\frac{\partial \mathbf{U}}{\partial r}\right) + \frac{1}{\mathbf{r^2}}\left(\frac{\partial ^2 \mathbf{U}}{\partial \theta^2
+    }\right) + \left(\frac{\partial ^2 \mathbf{U}}{\partial z^2
+    }\right)
+\end{equation}
+where we assume azimuthal symmetry
+\begin{equation}
+    \frac{\partial \mathbf{U}}{\partial t} = \frac{1}{\mathbf{r}}\frac{\partial}{\partial \mathbf{r}}\left(\mathbf{r}\frac{\partial \mathbf{U}}{\partial r}\right) + \left(\frac{\partial ^2 \mathbf{U}}{\partial z^2
+    }\right)
+\end{equation}
+\begin{equation}
+    \frac{d\mathbf{U}}{dt} = \frac{1}{\mathbf{r}}\mathbf{U}_{rr} + \mathbf{U}_{zz}
+\end{equation}
+
+To solve this diffusive heat equation, we presume the solution assumes a low-rank structure that can be factored into time-dependent, orthogonal spatial basis vectors $\mathbf{V}_r$, $\mathbf{V}_z$ and a diagonal weighting vector $\mathbf{S}$ via truncated singular value decomposition (SVD) such that
+\begin{equation}
+    \mathbf{U}(t^n) = \mathbf{V}^r(t^n) \mathbf{S}(t^n) (\mathbf{V}^{z}(t^n))^T
+\end{equation}
+
+where $\mathbf{V}^r$ and $\mathbf{V}^z$ are orthogonal basis matrices for the $r$, and $z$ subspaces, respectively, and $\mathbf{S}$ is a diagonal weighting vector. However, it is important to note that because we are working in cylindrical coordinates, functions $f(x)$, $g(x)$ are only orthogonal in the $L^2$ norm if
+
+\begin{equation}
+    <f, g>_r := \int_0^L f(x)g(x) r dr =
+    \begin{cases}
+         0, \quad f(x) \neq g(x) \\
+         1, \quad f(x) = g(x)
+    \end{cases}
+	\label{eq:weighted-subspace-orthogonality}
+\end{equation}
+
+because the determinant of the linear transformation matrix from Cartesian to cylindrical coordinates equals the radius $r$. Therefore, when we define the orthogonal basis matrix $\mathbf{V}^r$ as orthogonal only if
+
+\begin{equation}
+    (\mathbf{V}^r)^T \left(\mathbf{r}  \star \mathbf{V}_*^{r} \right) = I
+\end{equation}
+where the $\star$ operator denotes the Hasmaard product between the orthogonal basis matrix and the vector of r-values. 
+
+We represent the second partial derivatives $\mathbf{U}_{rr}$, $\mathbf{U}_{zz}$ using Laplacians $\mathbf{D}_{rr}$, $\mathbf{D}_{zz}$ that act on the discretized basis vectors to yield high-order approximations of the second partial derivatives. 
+
+We can represent the spatially discretized solution $\mathbf{U}^n \approx \mathbf{U}(t^n)$ and at each time-step, we separately update $\mathbf{V}^r$, $S$, and $\mathbf{V}^z$ to yield the complete solution $\mathbf{U}^{n+1}$ at time $t^{n+1}$.
+
+\begin{equation}
+    \mathbf{U}^{n+1} = \mathbf{V}^{r, n+1} \mathbf{S}^{n+1} (\mathbf{V}^{z, n+1})^T
+\end{equation}
+
+If we update the solution using time-step size $\Delta t$, we can achieve a first-order temporal approximation via Backward Euler method 
+
+\begin{equation}
+    \mathbf{U}^{n+1} = \mathbf{U}^n + \Delta t\left(\frac{1}{\mathbf{r}} \mathbf{D}_{rr}\mathbf{U}^{n+1} + \mathbf{U}^{n+1}\mathbf{D}_{zz}^T\right)
+    \label{eq:backward-euler}
+\end{equation}
+
+We use the dynamic low-rank (DLR) framework to separate equation (\ref{eq:backward-euler}) into its basis vector components, isolating and solving for $\mathbf{V}_r$, $\mathbf{V}_z$, and $S$ separately. We project $\mathbf{U}^n$ onto the low-rank basis subspaces of $\mathbf{V}^r$ and $\mathbf{V}^z$ using first-order approximations $\mathbf{V}_*^{r, n+1} \approx  \mathbf{V}^{r, n+1}$, and $\mathbf{V}_*^{z, n+1} \approx V^{z, n+1}$. 
+\begin{equation}
+\begin{split}
+    \mathbf{K}^{n+1} := \mathbf{U}^{n+1} \mathbf{V}_*^{z, n+1} = \mathbf{V}^{r, n+1} \mathbf{S}^{n+1} (\mathbf{V}^{z, n+1})^T \mathbf{V}_*^{z, n+1} = \mathbf{V}^{r, n+1} \mathbf{S}^{n+1}\\
+    \mathbf{L}^{n+1} := (\mathbf{U}^{n+1})^T \left(\mathbf{r}  \star \mathbf{V}_*^{r, n+1} \right) = \mathbf{V}^{z, n+1} (\mathbf{S}^{n+1})^T (\mathbf{V}^{r, n+1})^T \left(\mathbf{r}  \star \mathbf{V}_*^{r, n+1} \right) = \mathbf{V}^{z, n+1} (\mathbf{S}^{n+1})^T
+\end{split}
+\end{equation}
+
+We project equation (\ref{eq:backward-euler}) onto the orthogonal vector $\mathbf{V}_*^{z, n+1}$, to achieve
+
+\begin{equation}
+    \mathbf{K}^{n+1} = \mathbf{K}^n + \Delta t\left(\frac{1}{\mathbf{r}} \mathbf{D}_{rr}\mathbf{K}^{n+1} + \mathbf{K}^{n+1}\left(\mathbf{D}_{zz} \mathbf{V}^{z, n+1}\right)^T\mathbf{V}^{z, n+1}\right)
+\end{equation}
+
+We can rearrange this equation to yield a Sylvester equation solveable for $\mathbf{K}^{n+1}$. 
+
+\begin{equation}
+    \left(\mathbf{I} -  \Delta t \frac{1}{\mathbf{r}} \mathbf{D}_{rr}\right) \mathbf{K}^{n+1} - \mathbf{K}^{n+1}\left( \Delta t \left(\mathbf{D}_{zz} \mathbf{V}^{z, n+1} \right)^T\mathbf{V}^{z, n+1}\right) = \mathbf{K}^n 
+	\label{eq:K-sylvester}
+\end{equation}
+
+Similarly, we can project equation (\ref{eq:backward-euler})  onto the orthogonal vector product $\mathbf{V}_*^{r, n+1} \mathbf{r}$ to yield
+
+\begin{equation}
+    \left(\mathbf{I} -  \Delta t \mathbf{D}_{zz}\right) \mathbf{L}^{n+1} - \mathbf{L}^{n+1}\left( \Delta t \left(\mathbf{D}_{rr} \mathbf{V}^{r, n+1} \right)^T \left(\mathbf{r} \star \mathbf{V}^{r, n+1} \right) \right) = \mathbf{L}^n 
+	\label{eq:L-sylvester}
+\end{equation}
+
+Note that equation (\ref{eq:L-sylvester}) differs from equation (\ref{eq:K-sylvester}) in that the it results from the projection of equation (\ref{eq:backward-euler}) onto $\left(\mathbf{r}  \star \mathbf{V}_*^{r, n+1} \right)$ because we want to ensure that the r-subspace basis $\mathbf{V^{r, n+1}}$ is projected out due to the definition of weighted subspace orthogonality (\ref{eq:weighted-subspace-orthogonality}). 
+
+We solve equations (\ref{eq:K-sylvester}) and (\ref{eq:L-sylvester}) to get $\mathbf{K}^{n+1}$ and $\mathbf{L}^{n+1}$, respectively. We then compute reduced QR-factorization on $\mathbf{K}^{n+1}$ and $\mathbf{L}^{n+1}$ to obtain updated orthogonal basis vectors $\mathbf{V}^{r, n+1}_\ddag$, and  $\mathbf{V}^{z, n+1}_\ddag$, respectively. The reduced QR-factorizations are defined via $\mathbf{K}^{n+1} = \mathbf{QR} :=\mathbf{V}^{r, n+1}_\ddag \mathbf{R}$ and $\mathbf{L}^{n+1} = \mathbf{QR} :=\mathbf{V}^{z, n+1}_\ddag \mathbf{R}$. However, to ensure $\mathbf{V}^{r, n+1}$ remains orthogonal in the weighted r-susbspace, we	compute the $\mathbf{K}^{n+1}$ reduced QR-factorization via
+
+\begin{equation}
+	\texttt{QR-factorization}(\sqrt{\mathbf{r}} \star \mathbf{K}^{n+1}) \rightarrow \frac{\mathbf{Q}}{\sqrt{\mathbf{r}}} = \mathbf{V}_\ddag^{r, n+1}
+\end{equation}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+\end{document}
