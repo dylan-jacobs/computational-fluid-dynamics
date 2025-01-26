@@ -13,7 +13,6 @@ function [U, ranks] = HeatEqnSolver(type, U, dt, Nr, Nz, tf, interval, tolerance
     Drr(end, end) =  ((-3) * (rvals(end) + (dr/2))) - (rvals(end) - (dr/2));
     Drr = (1/(dr^2)) * (diag(1./rvals) * Drr);
 
-
     % Dzz = gallery('tridiag', Nz, 1, -2, 1); % centered nodes
     Dzz = (2*pi/interval(4))^2*toeplitz([-1/(3*(2*dz/interval(4))^2)-1/6 ...
   .5*(-1).^(2:Nz)./sin((2*pi*dz/interval(4))*(1:Nz-1)/2).^2]);

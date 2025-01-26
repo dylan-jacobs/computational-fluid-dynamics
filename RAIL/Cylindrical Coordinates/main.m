@@ -12,7 +12,7 @@ u0 = @(r, z) (besselj(0, (j01/Rf)*r)) .* (sin((2*pi/L)*z));
 u_exact = @(r, z, t) (exp(-t*(((j01/Rf)^2) + (2*pi/L)^2))*u0(r, z));
 [R, Z, dr, dz] = GetRZ(Nr, Nz, interval);
 
-lambdavals = 0.05;%(0.02:0.02:10)';
+lambdavals = (0.02:0.02:10)';
 errors = zeros(numel(lambdavals), 3); % L1 norm for B. Euler, DIRK2, and DIRK3
 U_exact = u_exact(R, Z, tf);
 
