@@ -1,0 +1,34 @@
+% Facilitates single forward Euler timestep for the 2D Fokker-Planck system
+
+function [Vr, S, Vz, rank] = ForwardEulerTimestep(Vr0, S0, Vz0, dt, tval, rvals, zvals, Br, Bz, Drr, Dzz, tolerance)
+    Fr = GetRadialFluxSPCC(tval, rvals, Br, Drr);
+    Fz = GetZFluxSPCC(tval, zvals, Bz, Dzz);
+
+    Vr0_star = Vr0; Vz0_star = Vz0;
+   
+    K0 = Vr0*S0;
+    L0 = Vz0*(S0');
+
+    K1 = K0 + (dt*((Fr*K0) + (K0*(Fz*Vz0_star)'*Vz0_star)));
+    L1 = L0 + (dt*((Fz*L0) + (L0*(Fr*Vr0_star)'*(rvals.*Vr0_star))));
+
+    [Vr1_ddagger, ~] = qr2(K1, rvals);
+    [Vz1_ddagger, ~] = qr(L1, 0);
+
+    [Vr, Vz] = reduced_augmentation([Vr1_ddagger, Vr0], [Vz1_ddagger, Vz0], rvals);
+    S01 = ((rvals .* Vr)'*Vr0)*S0*((Vz0')*Vz);
+    S = S01 + dt*( (rvals.*Vr)'*(Fr*Vr)*S01 + (S01*(Fz*Vz)'*Vz) );
+    [Vr, S, Vz, rank] = truncate_svd(Vr, S, Vz, tolerance);
+end
+
+
+
+
+
+
+
+
+
+
+
+
