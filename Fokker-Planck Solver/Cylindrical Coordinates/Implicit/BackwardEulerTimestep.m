@@ -18,8 +18,10 @@ function [Vr, S, Vz, rank] = BackwardEulerTimestep(Vr0, S0, Vz0, dt, tval, rvals
     [Vr1_ddagger, ~] = qr2(K1, rvals);
     [Vz1_ddagger, ~] = qr(L1, 0);
 
+    % Vr = Vr1_ddagger;
+    % Vz = Vz1_ddagger;
     [Vr, Vz] = reduced_augmentation([Vr1_ddagger, Vr0], [Vz1_ddagger, Vz0], rvals);
-    S = sylvester(eye(size(Vr, 2)) - (dt*((rvals .* Vr)')*(Fr*Vr)), -dt*(Fz*Vz)'*Vz, ((rvals .* Vr)'*Vr0)*S0*((Vz0')*Vz));
+    S = sylvester(full(speye(size(Vr, 2)) - (dt*((rvals .* Vr)')*(Fr*Vr))), -dt*(Fz*Vz)'*Vz, ((rvals .* Vr)'*Vr0)*S0*((Vz0')*Vz));
     [Vr, S, Vz, rank] = truncate_svd(Vr, S, Vz, tolerance);
 end
 

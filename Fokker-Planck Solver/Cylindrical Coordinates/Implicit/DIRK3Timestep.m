@@ -6,29 +6,32 @@
 % Outputs: updated vases Vx3, S3, Vy3
 %          rank: r3
 
-function [Vr3, S3, Vz3, r3] = DIRK3(Vr0, S0, Vz0, rvals, dt, Drr, Dzz, tolerance)
+function [Vr3, S3, Vz3, r3] = DIRK3Timestep(Vr0, S0, Vz0, dt, tval, rvals, zvals, Br, Bz, Drr, Dzz, tolerance)
+
+    Fr1 = GetRadialFluxSPCC(tval, rvals, Br, Drr);
+    Fz1 = GetZFluxSPCC(tval, zvals, Bz, Dzz);
     
     % RK butcher table values
     nu = 0.435866521508459;
     beta1 = -(3/2)*(nu^2) + (4*nu) - (1/4);
     beta2 = (3/2)*(nu^2) - (5*nu) + (5/4);
-    Nrr = size(Drr);
-    Nzz = size(Dzz);
     
     % Stage 1: Backward Euler
-    [Vr1, S1, Vz1, ~] = BackwardEuler(Vr0, S0, Vz0, rvals, nu*dt, Drr, Dzz, tolerance);
-    [Vr_dagger1, ~, Vz_dagger1, ~] = BackwardEuler(Vr0, S0, Vz0, rvals, ((1+nu)/2)*dt, Drr, Dzz, tolerance);
+    [Vr1, S1, Vz1, ~] = BackwardEulerTimestep(Vr0, S0, Vz0, nu*dt, tval, rvals, zvals, Br, Bz, Drr, Dzz, tolerance);
+    [Vr_dagger1, ~, Vz_dagger1, ~] = BackwardEulerTimestep(Vr0, S0, Vz0, ((1+nu)/2)*dt, tval, rvals, zvals, Br, Bz, Drr, Dzz, tolerance);
 
-    Y1 = (((Drr*Vr1*S1*(Vz1')) + (Vr1*S1*((Dzz*Vz1)'))));
+    Y1 = (((Fr1*Vr1*S1*(Vz1')) + (Vr1*S1*((Fz1*Vz1)'))));
     W1 = (Vr0*S0*(Vz0')) + (((1-nu)/2)*dt*Y1);
 
     % Reduced Augmentation
     [Vr_star1, Vz_star1] = reduced_augmentation([Vr_dagger1, Vr1, Vr0], [Vz_dagger1, Vz1, Vz0], rvals);
 
     % Stage 2:
+    Fr2 = GetRadialFluxSPCC(tval + ((1+nu)/2), rvals, Br, Drr);
+    Fz2 = GetZFluxSPCC(tval + ((1+nu)/2), zvals, Bz, Dzz);
     % K/L-Step
-    K2 = sylvester(eye(Nrr) - (nu*dt*Drr), -nu*dt*(Dzz*Vz_star1)'*Vz_star1, W1*Vz_star1);
-    L2 = sylvester(eye(Nzz) - (nu*dt*Dzz), -nu*dt*(Drr*(rvals .* Vr_star1))'*Vr_star1, (W1')*(rvals .* Vr_star1));
+    K2 = sylvester(eye(size(Fr2)) - (nu*dt*Fr2), -nu*dt*(Fz2*Vz_star1)'*Vz_star1, W1*Vz_star1);
+    L2 = sylvester(eye(size(Fz2)) - (nu*dt*Fz2), -nu*dt*(Fr2*(rvals .* Vr_star1))'*Vr_star1, (W1')*(rvals .* Vr_star1));
 
     % Get bases
     [Vr_ddagger2, ~] = qr2(K2, rvals); [Vz_ddagger2, ~] = qr(L2, 0);
@@ -37,21 +40,23 @@ function [Vr3, S3, Vz3, r3] = DIRK3(Vr0, S0, Vz0, rvals, dt, Drr, Dzz, tolerance
     [Vr2, Vz2] = reduced_augmentation([Vr_ddagger2, Vr1, Vr0], [Vz_ddagger2, Vz1, Vz0], rvals);
 
     % S-Step
-    S2 = sylvester(eye(size(Vr2, 2)) - (nu*dt*(rvals .* Vr2)'*Drr*Vr2), -nu*dt*(Dzz*Vz2)'*Vz2, ((rvals .* Vr2)')*W1*Vz2);
+    S2 = sylvester(eye(size(Vr2, 2)) - (nu*dt*(rvals .* Vr2)'*Fr2*Vr2), -nu*dt*(Fz2*Vz2)'*Vz2, ((rvals .* Vr2)')*W1*Vz2);
     [Vr2, S2, Vz2, ~] = truncate_svd(Vr2, S2, Vz2, tolerance);
 
     % Stage 3:
+    Fr3 = GetRadialFluxSPCC(tval + dt, rvals, Br, Drr);
+    Fz3 = GetZFluxSPCC(tval + dt, zvals, Bz, Dzz);
     % Predict V_dagger using B. Euler
-    [Vr_dagger3, ~, Vz_dagger3, ~] = BackwardEuler(Vr0, S0, Vz0, rvals, dt, Drr, Dzz, tolerance);
-    Y2 = (((Drr*Vr2*S2*(Vz2')) + (Vr2*S2*((Dzz*Vz2)'))));
+    [Vr_dagger3, ~, Vz_dagger3, ~] = BackwardEulerTimestep(Vr0, S0, Vz0, dt, tval, rvals, zvals, Br, Bz, Drr, Dzz, tolerance);
+    Y2 = (((Fr3*Vr2*S2*(Vz2')) + (Vr2*S2*((Fz3*Vz2)'))));
     W2 = (Vr0*S0*(Vz0')) + (beta1*dt*Y1) + (beta2*dt*Y2);
       
     % Reduced augmentation
     [Vr_star3, Vz_star3] = reduced_augmentation([Vr_dagger3, Vr2, Vr1, Vr0], [Vz_dagger3, Vz2, Vz1, Vz0], rvals);
 
     % K/L-Step
-    K3 = sylvester(eye(Nrr) - (nu*dt*Drr), -nu*dt*(Dzz*Vz_star3)'*Vz_star3, W2*Vz_star3);
-    L3 = sylvester(eye(Nzz) - (nu*dt*Dzz), -nu*dt*(Drr*Vr_star3)'*(rvals .* Vr_star3), (W2')*(rvals .* Vr_star3));
+    K3 = sylvester(eye(size(Fr3)) - (nu*dt*Fr3), -nu*dt*(Fz3*Vz_star3)'*Vz_star3, W2*Vz_star3);
+    L3 = sylvester(eye(size(Fz3)) - (nu*dt*Fz3), -nu*dt*(Fr3*Vr_star3)'*(rvals .* Vr_star3), (W2')*(rvals .* Vr_star3));
 
     % Get bases
     [Vr_ddagger3, ~] = qr2(K3, rvals); [Vz_ddagger3, ~] = qr(L3, 0);
@@ -60,7 +65,7 @@ function [Vr3, S3, Vz3, r3] = DIRK3(Vr0, S0, Vz0, rvals, dt, Drr, Dzz, tolerance
     [Vr3, Vz3] = reduced_augmentation([Vr_ddagger3, Vr2, Vr1, Vr0], [Vz_ddagger3, Vz2, Vz1, Vz0], rvals);
 
     % S-Step
-    S3 = sylvester(eye(size(Vr3, 2)) - (nu*dt*((rvals .* Vr3)')*Drr*Vr3), -nu*dt*(Dzz*Vz3)'*Vz3, ((rvals .* Vr3)')*W2*Vz3);
+    S3 = sylvester(eye(size(Vr3, 2)) - (nu*dt*((rvals .* Vr3)')*Fr3*Vr3), -nu*dt*(Fz3*Vz3)'*Vz3, ((rvals .* Vr3)')*W2*Vz3);
     [Vr3, S3, Vz3, r3] = truncate_svd(Vr3, S3, Vz3, tolerance);
 
 end

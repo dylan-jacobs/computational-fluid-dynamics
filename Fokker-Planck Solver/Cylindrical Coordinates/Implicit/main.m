@@ -32,10 +32,10 @@ f_M1 = f_M(n1, R, T1, u_vec1, rvals, zvals);
 f_M2 = f_M(n2, R, T2, u_vec2, rvals, zvals);
 
 f0 = f_M1 + f_M2;
-f_inf = @(vr, vz) (pi/(2*pi*R*3)^(3/2)).*exp(-((vr.^2) + (vz.^2))./(2*R*3));
+f_inf = @(vr, vz) (pi/(2*pi*R*T)^(3/2)).*exp(-((vr.^2) + (vz.^2))./(2*R*T));
 f_inf = f_inf(rvals, zvals);
 
-lambdavals = 0.5;%(1:0.1:6)';%(0.1:0.05:5)';
+lambdavals = 0.5; %(0.2:0.1:6)';%(0.1:0.05:5)';
 errors = zeros(numel(lambdavals), 3);
 
 % figure(1); clf; surf(rvals, zvals, f0);shading interp;
@@ -47,14 +47,15 @@ savepath = 'Plots/Backward Euler';
 % savepath = 'Plots/RK2';
 
 for k = 1:numel(lambdavals)
-    dt = lambdavals(k)*(dr^2)/(2*((B_max*dr) + D_max));
-    % dt = lambdavals(k)/(1/dr + 1/dz);
+    dt = lambdavals(k)*(dr^2)/(2*((B_max*dr) + D_max)); % explicit
+    dt = lambdavals(k)/(1/dr + 1/dz);                   % implicit
     disp([num2str(k), '/', num2str(numel(lambdavals))]);
 
     [f, data] = FokkerPlanckImplicitSolver('1', f0, dt, Nr, Nz, tf, interval, B, D, false, f_inf, tolerance, r0);
     errors(k, 1) = dr*dz*sum((sum(abs(f - f_inf)))); % L1 error
+    errors(k, 1) = data(end, 1);
 end
-%%
+
 l1 = data(:, 1);
 positivity = data(:, 2);
 relative_entropy = data(:, 3);
@@ -65,20 +66,19 @@ ranks1 = data(:, 6);
 figure(1); clf; surf(rvals, zvals, f);
 colorbar; shading interp;
 legend(sprintf('N_r = %s', num2str(Nr, 3)), 'Location','northwest');
-xlabel('V_z'); ylabel('V_r'); zlabel('U'); title([sprintf('Backward Euler approximation of 0D2V Fokker-Planck system at time %s', num2str(tf, 4))]);
+xlabel('V_r'); ylabel('V_z'); zlabel('U'); title([sprintf('Backward Euler approximation of 0D2V Fokker-Planck system at time %s', num2str(tf, 4))]);
 saveas(gcf, sprintf('%s/numerical_solution.jpg', savepath));
 saveas(gcf, sprintf('%s/numerical_solution.fig', savepath));
 
 figure(2); clf; surf(rvals, zvals, f_inf);
 colorbar; shading interp;
-xlabel('V_z'); ylabel('V_r'); zlabel('f(V_r, V_z, t)'); title([sprintf('f_{exact} at time t=%s', num2str(tf, 4))]);
+xlabel('V_r'); ylabel('V_z'); zlabel('f(V_r, V_z, t)'); title([sprintf('f_{exact} at time t=%s', num2str(tf, 4))]);
 saveas(gcf, sprintf('%s/exact_solution.jpg', savepath));
 saveas(gcf, sprintf('%s/exact_solution.fig', savepath));
 
 figure(7); clf;
 loglog(lambdavals, errors(:, 1), 'g-', 'LineWidth', 1.5); hold on;
 loglog(lambdavals, lambdavals .^ 1, 'g--', 'LineWidth', 1.5);
-
 
 % l1 decay
 figure(3); clf; semilogy(tvals, l1, 'black-', 'LineWidth', 1.5);
