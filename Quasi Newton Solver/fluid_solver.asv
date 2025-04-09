@@ -14,11 +14,11 @@ if tvals(end) ~= tf
     tvals = [tvals, tf];
 end
 
-R = 1/6;
-ma = 1;
-me = 1/1836;
-qa = 1;
-qe = -1;
+R_const = 1/6; % gas constant
+ma = 1; % ion mass
+me = 1/1836; % electron mass
+qa = 1; % ion charge
+qe = -1; % electron charge
 
 [n, u_para, T_ae] = get_boundaries(); % electron and ion temps equal at t=0 and at boundaries --> T_ae = T_a = T_e
 [xvals, v_para, v_perp, dx, dv_para, dv_perp] = GetXV(Nx, Vx, Vx, interval);
@@ -28,6 +28,7 @@ u_para = u_para(xvals);
 T_ae = T_ae(xvals); T_a = T_ae; Te = T_ae;
 U = 0.5*((3*T_a/ma) + (u_para.^2));
 
+% ---- plot ICs ----
 % figure; clf;
 % plot(xvals, n); hold on;
 % plot(xvals, u_para0./u_para0(1));
@@ -38,7 +39,7 @@ U = 0.5*((3*T_a/ma) + (u_para.^2));
 % drawnow;
 % pause(0.05);
 
-f = maxwellian(n, v_para, v_perp, u_para, T_ae, R);
+f = maxwellian(n, v_para, v_perp, u_para, T_ae, R_const);
 
 % store macroscopic parameters at every timestep for all xvals
 nvals = zeros(numel(tvals), Nx);
@@ -46,25 +47,27 @@ uvals = zeros(numel(tvals), Nx);
 Te_vals = zeros(numel(tvals), Nx);
 Ta_vals = zeros(numel(tvals), Nx);
 
-for tn = 1:numel(tvals)
+%
+
+for tn = 2:numel(tvals)
     disp(['t = ', num2str(tvals(tn))])
-    [n, nu_para, nU, Te] = newton_solver_FP(f, n, u_para, U, Te, dt, dx, dv_para, dv_perp, v_para, v_perp, qa, qe, ma, me, R, x_min, x_max);
+    [n, nu_para, nU, Te] = newton_solver_FP(f, n, u_para, U, Te, dt, dx, dv_para, dv_perp, v_para, v_perp, qa, qe, ma, me, R_const, x_min, x_max);
 
     u_para = nu_para./n;
     U = nU./n;
 
     % get T_a from macroscopic parameters
-    T_a = (2*U - u_para.^2).*ma/3; % this produces bad results for some reason!!!
+    Ta = (2*U - u_para.^2).*ma/3;
    
     nvals(tn, :) = n;
     uvals(tn, :) = u_para;
     Te_vals(tn, :) = Te;
-    Ta_vals(tn, :) = T_a;
+    Ta_vals(tn, :) = Ta;
 
     % reconstruct f
-    f = maxwellian(n, v_para, v_perp, u_para, T_a, R);
+    f = maxwellian(n, v_para, v_perp, u_para, Ta, R_const);
 
-    if mod(tvals(tn), 25) < 0.25
+    if mod(tvals(tn), 10) < 0.25
         figure; clf;
         plot(xvals, nvals(tn, :), "LineWidth",1.5); hold on;
         plot(xvals, uvals(tn, :)./uvals(tn, 1), "LineWidth",1.5);
@@ -73,6 +76,7 @@ for tn = 1:numel(tvals)
         legend('n', 'u/u0', 'T_e', 'T_\alpha')
         title(['tn=', num2str(tvals(tn))]);
         xlabel('x');
+        ylim([0, 1.8]);
         drawnow;
         pause(0.05);
 

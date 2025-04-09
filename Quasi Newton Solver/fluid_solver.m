@@ -8,7 +8,7 @@ x_max = 200;
 interval = [x_min, x_max, -8, 10, 0, 8]; % 1D in x, 2D in v
 
 dt = 5e-3;
-tf = 150;
+tf = 2000;
 tvals = [0, dt, dt+0.3:0.3:tf];
 if tvals(end) ~= tf
     tvals = [tvals, tf];
@@ -25,8 +25,8 @@ qe = -1; % electron charge
 
 n = n(xvals);
 u_para = u_para(xvals);
-T_ae = T_ae(xvals); T_a = T_ae; Te = T_ae;
-U = 0.5*((3*T_a/ma) + (u_para.^2));
+T_ae = T_ae(xvals); Ta = T_ae; Te = T_ae;
+U = 0.5*((3*Ta/ma) + (u_para.^2));
 
 % ---- plot ICs ----
 % figure; clf;
@@ -47,7 +47,14 @@ uvals = zeros(numel(tvals), Nx);
 Te_vals = zeros(numel(tvals), Nx);
 Ta_vals = zeros(numel(tvals), Nx);
 
-for tn = 1:numel(tvals)
+% ---- set initial vals ----
+nvals(1, :) = n;
+uvals(1, :) = u_para;
+Te_vals(1, :) = Te;
+Ta_vals(1, :) = Ta;
+
+figure; clf;
+for tn = 2:numel(tvals)
     disp(['t = ', num2str(tvals(tn))])
     [n, nu_para, nU, Te] = newton_solver_FP(f, n, u_para, U, Te, dt, dx, dv_para, dv_perp, v_para, v_perp, qa, qe, ma, me, R_const, x_min, x_max);
 
@@ -55,25 +62,24 @@ for tn = 1:numel(tvals)
     U = nU./n;
 
     % get T_a from macroscopic parameters
-    T_a = (2*U - u_para.^2).*ma/3;
+    Ta = (2*U - u_para.^2).*ma/3;
    
     nvals(tn, :) = n;
     uvals(tn, :) = u_para;
     Te_vals(tn, :) = Te;
-    Ta_vals(tn, :) = T_a;
+    Ta_vals(tn, :) = Ta;
 
     % reconstruct f
-    f = maxwellian(n, v_para, v_perp, u_para, T_a, R_const);
+    f = maxwellian(n, v_para, v_perp, u_para, Ta, R_const);
 
-    if mod(tvals(tn), 25) < 0.25
-        figure; clf;
+    if mod(tvals(tn), 100) < 0.25
+        subplot(5, 4, floor(tvals(tn) / 100)+1);
         plot(xvals, nvals(tn, :), "LineWidth",1.5); hold on;
         plot(xvals, uvals(tn, :)./uvals(tn, 1), "LineWidth",1.5);
         plot(xvals, Te_vals(tn, :), "LineWidth",1.5);
         plot(xvals, Ta_vals(tn, :), "LineWidth",1.5);
-        legend('n', 'u/u0', 'T_e', 'T_\alpha')
         title(['tn=', num2str(tvals(tn))]);
-        xlabel('x');
+        ylim([0, 1.4]);
         drawnow;
         pause(0.05);
 
@@ -83,3 +89,4 @@ for tn = 1:numel(tvals)
         % pause(0.05);
     end
 end
+legend('n', 'u/u0', 'T_e', 'T_\alpha')

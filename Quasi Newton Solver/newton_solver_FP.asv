@@ -45,19 +45,28 @@ function [n, nu, nU, T_e] = newton_solver_FP(f, n0, u_para0, U0, T_ae0, dt, dx, 
     n = n0 - (dt/dx)*(nu_hat_pos - nu_hat_neg); % now find n_i+1, n_i-1
     n_pos = [n(2:end); n0_max]; n_neg = [n0_min; n(1:end-1)];
 
-    kappa_pos = (3.2/(2*sqrt(2*me)))*((Te0_pos.^(5/2) + T_ae0.^(5/2)));
-    kappa_neg = (3.2/(2*sqrt(2*me)))*((T_ae0.^(5/2) + Te0_neg.^(5/2)));
-
     % init y_vec, R_norm    
     y = [n0.*u_para0; n0.*U0; T_ae0];
-    R1 = (dt/dx).*(S_hat_pos - S_hat_neg) - ((dt*qa)/(2*dx*qe*ma)).*((n_pos.*Te0_pos) - (n_neg.*Te0_neg));
-    R2 = (dt/dx).*(Q_hat_pos - Q_hat_neg) - ((dt*qa*u_para0)./(2*dx*qe*ma)).*((n_pos.*Te0_pos) - (n_neg.*Te0_neg)) - (((dt.*3.*sqrt(2*me))./((ma.^2).*(T_ae0.^(3/2)))) .* ((n.^2).*T_ae0 - (ma/3).*(2*n0.*U0 - ((n0.*u_para0).^2))));
-    R3 = ((5*dt)/(3*dx)).*(nTe_hat_pos - nTe_hat_neg) - (((dt*(n0.*u_para0))./(3*dx.*n)).*((u_para0_half_nodes(2:end).*n_pos.*Te0_pos) - (u_para0_half_nodes(1:end-1).*n_neg.*Te0_neg))) - (((2*dt)/(3*dx.^2)) .* ((kappa_pos.*(Te0_pos - T_ae0)) - (kappa_neg.*(T_ae0 - Te0_neg)))) - (((dt.*2.*sqrt(2*me))./(ma.*(T_ae0.^(3/2)))) .* (-(n.^2).*T_ae0 + (ma/3).*(2*n0.*U0 - ((n0.*u_para0).^2))));
+
+    nu = y(1:Nx);
+    nU = y(Nx+1:2*Nx);
+    T_e = y(2*Nx+1:end);
+    Te_pos = [T_e(2:end); T_ae_max]; Te_neg = [T_ae_min; T_e(1:end-1)];
+    nTe_pos = n_pos.*Te_pos; nTe_neg = n_neg.*Te_neg;
+
+    kappa_pos = (3.2/(2*sqrt(2*me)))*((Te_pos.^(5/2) + T_e.^(5/2)));
+    kappa_neg = (3.2/(2*sqrt(2*me)))*((T_e.^(5/2) + Te_neg.^(5/2)));
+
+    %%% ASK ABOUT (unTe)_HAT vs u(nTe)_HAT!!!
+    R1 = nu - (n0.*u_para0) + (dt/dx).*(S_hat_pos - S_hat_neg) - ((dt*qa)/(2*dx*qe*ma)).*((n_pos.*Te_pos) - (n_neg.*Te_neg));
+    R2 = nU - (n0.*U0) + (dt/dx).*(Q_hat_pos - Q_hat_neg) - (((dt*qa*nu)./(2*dx*qe*n)).*((n_pos.*Te_pos) - (n_neg.*Te_neg))) - (((dt.*3.*sqrt(2*me))./((ma.^2).*(T_e.^(3/2)))) .* (((n.^2).*T_e) - ((ma/3).*((2.*n.*nU) - (nu.^2)))));
+
+    %%% ANOTHER DISCREPANCY HERE AT END!!! 
+    R3 = (n0.*T_e) - (n0.*T_ae0) + ((5*dt)/(3*dx)).*(u_para0_half_nodes(2:end).*nTe_hat_pos - u_para0_half_nodes(1:end-1).*nTe_hat_neg) - (((dt*nu)./(3*dx.*n)).*(nTe_pos - nTe_neg)) - (((2*dt)/(3*dx.^2)) .* ((kappa_pos.*(Te_pos - T_e)) - (kappa_neg.*(T_e - Te_neg)))) - (((dt.*2.*sqrt(2*me))./(ma.*(T_e.^(3/2)))) .* (((ma/3).*((2*n.*nU) - (nu.^2))) - ((n.^2).*T_e)));
+    % R3 = (n.*T_e) - (n0.*T_ae0) + ((5*dt)/(3*dx)).*(nTe_hat_pos - nTe_hat_neg) - (((dt*nu)./(3*dx.*n)).*(nTe_pos - nTe_neg)) - (((2*dt)/(3*dx.^2)) .* ((kappa_pos.*(Te_pos - T_e)) - (kappa_neg.*(T_e - Te_neg)))) - (((dt.*2.*sqrt(2*me))./(ma.*(T_e.^(3/2)))) .* (-(n.^2).*T_e + (ma/3).*((2*ma*n.*nU./3) - (nu.^2))));
     R = [R1; R2; R3];
-
-    %%% R_norm inits to be very small!!! -- why??
-
-    tol = min(5e-12, max(R)*5e-10);
+    
+    tol = min(5e-12, max(R)*5e-10); % ensure we don't get worse!
 
     while (max(R) > tol)
         % update y_vec stuff
@@ -75,28 +84,24 @@ function [n, nu, nU, T_e] = newton_solver_FP(f, n0, u_para0, U0, T_ae0, dt, dx, 
         R2 = nU - (n0.*U0) + (dt/dx).*(Q_hat_pos - Q_hat_neg) - (((dt*qa*nu)./(2*dx*qe*n)).*((n_pos.*Te_pos) - (n_neg.*Te_neg))) - (((dt.*3.*sqrt(2*me))./((ma.^2).*(T_e.^(3/2)))) .* (((n.^2).*T_e) - ((ma/3).*((2.*n.*nU) - (nu.^2)))));
 
         %%% ANOTHER DISCREPANCY HERE AT END!!! 
-        R3 = (n.*T_e) - (n0.*T_ae0) + ((5*dt)/(3*dx)).*(u_para0_half_nodes(2:end).*nTe_hat_pos - u_para0_half_nodes(1:end-1).*nTe_hat_neg) - (((dt*nu)./(3*dx.*n)).*(nTe_pos - nTe_neg)) - (((2*dt)/(3*dx.^2)) .* ((kappa_pos.*(Te_pos - T_e)) - (kappa_neg.*(T_e - Te_neg)))) - (((dt.*2.*sqrt(2*me))./(ma.*(T_e.^(3/2)))) .* (-(n.^2).*T_e + (ma/3).*((2*ma*n.*nU./3) - (nu.^2))));
+        R3 = (n.*T_e) - (n0.*T_ae0) + ((5*dt)/(3*dx)).*((u_para0_half_nodes(2:end).*nTe_hat_pos) - (u_para0_half_nodes(1:end-1).*nTe_hat_neg)) - (((dt*nu)./(3*dx.*n)).*(nTe_pos - nTe_neg)) - (((2*dt)/(3*dx.^2)) .* ((kappa_pos.*(Te_pos - T_e)) - (kappa_neg.*(T_e - Te_neg)))) - (((dt.*2.*sqrt(2*me))./(ma.*(T_e.^(3/2)))) .* (((ma/3).*((2*n.*nU) - (nu.^2))) - ((n.^2).*T_e)));
         % R3 = (n.*T_e) - (n0.*T_ae0) + ((5*dt)/(3*dx)).*(nTe_hat_pos - nTe_hat_neg) - (((dt*nu)./(3*dx.*n)).*(nTe_pos - nTe_neg)) - (((2*dt)/(3*dx.^2)) .* ((kappa_pos.*(Te_pos - T_e)) - (kappa_neg.*(T_e - Te_neg)))) - (((dt.*2.*sqrt(2*me))./(ma.*(T_e.^(3/2)))) .* (-(n.^2).*T_e + (ma/3).*((2*ma*n.*nU./3) - (nu.^2))));
         R = [R1; R2; R3];
 
-        % define partial derivatives
+        % define partial derivatives of residual
         nu_nu = spdiags(ones(Nx), 0, Nx, Nx);
         nu_nU = spdiags(zeros(Nx),0, Nx, Nx);
-        % nu_Te = gallery('tridiag', (dt*qa*n_neg)/(2*dx*qe*ma), zeros(numel(n_neg)+1, 1), -(dt*qa*n_pos)/(2*dx*qe*ma));
         nu_Te = gallery('tridiag', (dt*qa*n(1:end-1))/(2*dx*qe*ma), zeros(Nx,1), -(dt*qa*n(2:end))/(2*dx*qe*ma));
     
         nU_nu = diag( ((-dt*qa)./(2*dx.*qe.*n)).*((n_pos.*Te_pos) - (n_neg.*Te_neg)) );
         nU_nU = spdiags(ones(Nx), 0, Nx, Nx);
-
-        % check regarding indexing!!!
         nU_Te_mid = (-(3*dt*sqrt(2*me))./(ma.^2)).*( (-(n.^2)./(2.*T_e.^(3/2))) + (ma/2)*((2*n.*y(Nx+1:2*Nx)) - (y(1:Nx).^2))./(T_e.^(5/2)) );
         nU_Te = gallery('tridiag', (dt.*qa.*y(2:Nx).*(n(1:end-1)./n(2:end)))./(2*dx*qe), nU_Te_mid, -(dt.*qa.*y(1:Nx-1, 1).*(n(2:end)./n(1:end-1)))/(2*dx*qe) );
     
-        % CHECK INDEXING
         Te_nu = diag(-(dt.*((n_pos.*Te_pos) - (n_neg.*Te_neg)))./(3*dx*n));
         Te_nU = spdiags(zeros(Nx), 0, Nx, Nx);
         Te_Te_left = ((dt.*nu.*n_neg)./(3*dx.*n)) + (((dt*3.2)./(3*(dx.^2).*sqrt(2*me))).*(((5.*(Te_neg.^(3/2))/2).*(T_e - Te_neg)) - (T_e.^(5/2) + Te_neg.^(5/2)))); Te_Te_left = Te_Te_left(2:end);
-        Te_Te_mid = n - (((dt*3.2)./(3*(dx.^2).*sqrt(2*me))).*(((5.*(T_e.^(3/2))./2).*(Te_pos - T_e)) - (Te_pos.^(5/2) + T_e.^(5/2)) - ((5.*(T_e.^(3/2))/2).*(T_e - Te_neg)) - (T_e.^(5/2) + Te_neg.^(5/2)))) - (2*dt*sqrt(2*me)./(ma)).*((-ma./(2*T_e.^(3/2))).*(2*n.*(nU) - (nu.^2)) + ((n.^2)./(2*nU.^(3/2))));
+        Te_Te_mid = n - (((dt*3.2)./(3*(dx.^2).*sqrt(2*me))).*(((5.*(T_e.^(3/2))./2).*(Te_pos - T_e)) - (Te_pos.^(5/2) + T_e.^(5/2)) - ((5.*(T_e.^(3/2))/2).*(T_e - Te_neg)) - (T_e.^(5/2) + Te_neg.^(5/2)))) - ((2*dt*sqrt(2*me)./(ma)).*(((-ma./(3*T_e.^(5/2))).*(2*n.*(nU) - (nu.^2)) + ((n.^2)./(2*T_e.^(3/2))))));
         Te_Te_right = ((-dt.*nu.*n_pos)./(3*dx.*n)) - (((dt*3.2)./(3*(dx.^2).*sqrt(2*me))).*(((5.*(Te_pos.^(3/2))/2).*(Te_pos - T_e)) + (Te_pos.^(5/2) + T_e.^(5/2)))); Te_Te_right = Te_Te_right(1:end-1);
         Te_Te = gallery('tridiag', Te_Te_left, Te_Te_mid, Te_Te_right);
 
@@ -114,12 +119,12 @@ function [n, nu, nU, T_e] = newton_solver_FP(f, n0, u_para0, U0, T_ae0, dt, dx, 
     
 end
 
-function [f_hat] = get_f_hat(f, v_para, v_perp, R, x_min, x_max)
+function [f_hat] = get_f_hat(f, v_para, v_perp, R_const, x_min, x_max)
 
     [n0, u_para0, T0] = get_boundaries();
 
-    f0 = maxwellian(n0(x_min), v_para, v_perp, u_para0(x_min), T0(x_min), R);
-    f_end = maxwellian(n0(x_max), v_para, v_perp, u_para0(x_max), T0(x_max), R);
+    f0 = maxwellian(n0(x_min), v_para, v_perp, u_para0(x_min), T0(x_min), R_const);
+    f_end = maxwellian(n0(x_max), v_para, v_perp, u_para0(x_max), T0(x_max), R_const);
     f = cat(3, f0, f, f_end);
     f_size = size(f);
     f_hat = zeros(f_size(1), f_size(2), f_size(3)-1);
