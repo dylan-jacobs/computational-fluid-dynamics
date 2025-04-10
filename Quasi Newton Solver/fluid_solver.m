@@ -90,3 +90,18 @@ for tn = 2:numel(tvals)
     end
 end
 legend('n', 'u/u0', 'T_e', 'T_\alpha')
+
+%%
+
+for i = 1:21
+    idx = i*500;
+    figure; clf;
+    plot(xvals, nvals(idx, :), "LineWidth",1.5); hold on;
+    plot(xvals, uvals(idx, :)./uvals(idx, 1), "LineWidth",1.5);
+    plot(xvals, Te_vals(idx, :), "LineWidth",1.5);
+    plot(xvals, Ta_vals(idx, :), "LineWidth",1.5);
+    title(['tn=', num2str(tvals(idx))]);
+    ylim([0, 1.8]);
+    legend('n', 'u/u0', 'T_e', 'T_\alpha')
+end
+
