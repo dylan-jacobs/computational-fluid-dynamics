@@ -7,9 +7,9 @@ x_min = 0;
 x_max = 200;
 interval = [x_min, x_max, -8, 10, 0, 8]; % 1D in x, 2D in v
 
-dt = 5e-3;
-tf = 2000;
-tvals = [0, dt, dt+0.3:0.3:tf];
+dt = 0.3;
+tf = 150;
+tvals = [0, 5e-3, 5e-3 + dt:dt:tf];
 if tvals(end) ~= tf
     tvals = [tvals, tf];
 end
@@ -56,6 +56,7 @@ Ta_vals(1, :) = Ta;
 figure; clf;
 for tn = 2:numel(tvals)
     disp(['t = ', num2str(tvals(tn))])
+    dt = tvals(tn) - tvals(tn-1);
     [n, nu_para, nU, Te] = newton_solver_FP(f, n, u_para, U, Te, dt, dx, dv_para, dv_perp, v_para, v_perp, qa, qe, ma, me, R_const, x_min, x_max);
 
     u_para = nu_para./n;
@@ -72,14 +73,15 @@ for tn = 2:numel(tvals)
     % reconstruct f
     f = maxwellian(n, v_para, v_perp, u_para, Ta, R_const);
 
-    if mod(tvals(tn), 100) < 0.25
-        subplot(5, 4, floor(tvals(tn) / 100)+1);
+    plot_freq = 25;
+    if mod(tvals(tn), plot_freq) < 0.25
+        subplot(3, 3, floor(tvals(tn) / plot_freq)+1);
         plot(xvals, nvals(tn, :), "LineWidth",1.5); hold on;
         plot(xvals, uvals(tn, :)./uvals(tn, 1), "LineWidth",1.5);
         plot(xvals, Te_vals(tn, :), "LineWidth",1.5);
         plot(xvals, Ta_vals(tn, :), "LineWidth",1.5);
         title(['tn=', num2str(tvals(tn))]);
-        ylim([0, 1.4]);
+        ylim([0, 3]);
         drawnow;
         pause(0.05);
 
@@ -93,15 +95,18 @@ legend('n', 'u/u0', 'T_e', 'T_\alpha')
 
 %%
 
-for i = 1:21
-    idx = i*500;
-    figure; clf;
-    plot(xvals, nvals(idx, :), "LineWidth",1.5); hold on;
-    plot(xvals, uvals(idx, :)./uvals(idx, 1), "LineWidth",1.5);
-    plot(xvals, Te_vals(idx, :), "LineWidth",1.5);
-    plot(xvals, Ta_vals(idx, :), "LineWidth",1.5);
-    title(['tn=', num2str(tvals(idx))]);
-    ylim([0, 1.8]);
-    legend('n', 'u/u0', 'T_e', 'T_\alpha')
-end
+figure; clf;
+plot(tvals, sum(nvals.*uvals, 2));
+
+% for i = 1:21
+%     idx = i*500;
+%     figure; clf;
+%     plot(xvals, nvals(idx, :), "LineWidth",1.5); hold on;
+%     plot(xvals, uvals(idx, :)./uvals(idx, 1), "LineWidth",1.5);
+%     plot(xvals, Te_vals(idx, :), "LineWidth",1.5);
+%     plot(xvals, Ta_vals(idx, :), "LineWidth",1.5);
+%     title(['tn=', num2str(tvals(idx))]);
+%     ylim([0, 1.8]);
+%     legend('n', 'u/u0', 'T_e', 'T_\alpha')
+% end
 
