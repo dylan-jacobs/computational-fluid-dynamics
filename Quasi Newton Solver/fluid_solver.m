@@ -63,7 +63,7 @@ for tn = 2:numel(tvals)
     U = nU./n;
 
     % get T_a from macroscopic parameters
-    Ta = (2*U - u_para.^2).*ma/3;
+    Ta = ((2*U) - (u_para.^2)).*ma/3;
    
     nvals(tn, :) = n;
     uvals(tn, :) = u_para;
