@@ -1,24 +1,24 @@
 % Tests the fluid solver for the FP plasma system
 clc; clear variables; close all;
 
-Nx = 80;
-Vx = 120;
+Nx = 60;
+Vx = 80;
 x_min = 0;
 x_max = 200;
 interval = [x_min, x_max, -8, 10, 0, 8]; % 1D in x, 2D in v
 
 dt = 0.3;
-tf = 150;
+tf = 100;
 tvals = [0, 5e-3, 5e-3 + dt:dt:tf];
 if tvals(end) ~= tf
     tvals = [tvals, tf];
 end
 
-R_const = 1/6; % gas constant
 ma = 1; % ion mass
 me = 1/1836; % electron mass
 qa = 1; % ion charge
 qe = -1; % electron charge
+R_const = 1/ma; % gas constant
 
 [n, u_para, T_ae] = get_boundaries(); % electron and ion temps equal at t=0 and at boundaries --> T_ae = T_a = T_e
 [xvals, v_para, v_perp, dx, dv_para, dv_perp] = GetXV(Nx, Vx, Vx, interval);
@@ -73,15 +73,15 @@ for tn = 2:numel(tvals)
     % reconstruct f
     f = maxwellian(n, v_para, v_perp, u_para, Ta, R_const);
 
-    plot_freq = 25;
+    plot_freq = 10;
     if mod(tvals(tn), plot_freq) < 0.25
-        subplot(3, 3, floor(tvals(tn) / plot_freq)+1);
+        subplot(4, 3, floor(tvals(tn) / plot_freq)+1);
         plot(xvals, nvals(tn, :), "LineWidth",1.5); hold on;
         plot(xvals, uvals(tn, :)./uvals(tn, 1), "LineWidth",1.5);
         plot(xvals, Te_vals(tn, :), "LineWidth",1.5);
         plot(xvals, Ta_vals(tn, :), "LineWidth",1.5);
         title(['tn=', num2str(tvals(tn))]);
-        ylim([0, 3]);
+        ylim([0, 2]);
         drawnow;
         pause(0.05);
 
@@ -96,7 +96,7 @@ legend('n', 'u/u0', 'T_e', 'T_\alpha')
 %%
 
 figure; clf;
-plot(tvals, sum(nvals.*uvals, 2));
+plot(tvals, sum(nvals, 2));
 
 % for i = 1:21
 %     idx = i*500;
