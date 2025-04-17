@@ -8,7 +8,7 @@ T = 3;
 u = 0; % advection velocity
 B = @(vr, t) (vr - u); 
 D = @(vr) (R*T)*(vr.^0);
-tf = 5;
+tf = 15;
 interval = [0, 14, -16, 16];
 Nr = 100; Nz = 100;
 [rvals, zvals, dr, dz] = GetRZ(Nr, Nz, interval);
@@ -35,7 +35,11 @@ f0 = f_M1 + f_M2;
 f_inf = @(vr, vz) (pi/(2*pi*R*T)^(3/2)).*exp(-((vr.^2) + (vz.^2))./(2*R*T));
 f_inf = f_inf(rvals, zvals);
 
-lambdavals = 0.5; %(0.2:0.1:6)';%(0.1:0.05:5)';
+n0 = 2*pi*dr*dz*sum(sum(f0.*rvals));
+nM = 2*pi*dr*dz*sum(sum(f_inf.*rvals));
+f_inf = (n0/nM)*f_inf;
+
+lambdavals = 3; %(0.2:0.1:6)';%(0.1:0.05:5)';
 errors = zeros(numel(lambdavals), 3);
 
 % figure(1); clf; surf(rvals, zvals, f0);shading interp;
@@ -43,15 +47,15 @@ errors = zeros(numel(lambdavals), 3);
 % xlabel('v_r'); ylabel('v_z'); title([sprintf('Forward Euler approximation of 0D2V Fokker-Planck system at time %s', num2str(tf, 4))]);
 % return
 
-savepath = 'Plots/Backward Euler';
+savepath = 'Plots/RK2';
 % savepath = 'Plots/RK2';
 
 for k = 1:numel(lambdavals)
-    dt = lambdavals(k)*(dr^2)/(2*((B_max*dr) + D_max)); % explicit
+    % dt = lambdavals(k)*(dr^2)/(2*((B_max*dr) + D_max)); % explicit
     dt = lambdavals(k)/(1/dr + 1/dz);                   % implicit
     disp([num2str(k), '/', num2str(numel(lambdavals))]);
 
-    [f, data] = FokkerPlanckImplicitSolver('1', f0, dt, Nr, Nz, tf, interval, B, D, false, f_inf, tolerance, r0);
+    [f, data] = FokkerPlanckImplicitSolver('2', f0, dt, Nr, Nz, tf, interval, B, D, false, f_inf, tolerance, r0);
     errors(k, 1) = dr*dz*sum((sum(abs(f - f_inf)))); % L1 error
     errors(k, 1) = data(end, 1);
 end
