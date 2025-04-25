@@ -20,15 +20,27 @@ function [n, nu, nU, T_e] = newton_solver_FP(f, n0, u_para0, U0, T_e0, dt, dx, d
 
     % first, compute fluxes via summation
     f_hat = get_f_hat(f, v_para, v_perp, R_const, x_min, x_max);
+
+    % ---- Compute f_hat using f -----
+    % f0 = maxwellian(n0_min, v_para, v_perp, u_para0_min, T_ae_min, R_const);
+    % f_end = maxwellian(n0_max, v_para, v_perp, u_para0_max, T_ae_max, R_const);
+    % f_hat_construction = cat(3, f0, f, f_end);
+    % ------------------------
+
     nu_hat = zeros(Nx+1, 1);
     S_hat = zeros(Nx+1, 1);
     Q_hat = zeros(Nx+1, 1);
     for i = 1:Nx+1
+        % f_hat = zeros(size(f_hat_construction, 1), size(f_hat_construction, 2));
+        % v_para_split_idx = find(v_para > 0, 1); % upwinding!
+        % f_hat(1:v_para_split_idx-1, :) = f_hat_construction(1:v_para_split_idx-1, :, i+1);
+        % f_hat(v_para_split_idx:end, :) = f_hat_construction(v_para_split_idx:end, :, i);
+  
         nu_hat(i) = 2*pi*(sum(sum(v_para .* f_hat(:, :, i) .* (v_perp.*dv_para.*dv_perp))));
     
         S_hat(i) = 2*pi*(sum(sum(v_para.^2 .* f_hat(:, :, i) .* (v_perp.*dv_para.*dv_perp))));
     
-        Q_hat(i) = pi*(sum(sum(v_para.^3 .* f_hat(:, :, i) .* (v_perp.*dv_para.*dv_perp))));
+        Q_hat(i) = pi*(sum(sum(v_para .* (v_para.^2 + v_perp.^2) .* f_hat(:, :, i) .* (v_perp.*dv_para.*dv_perp))));
     end
     nTe_hat = ((n0_neg.*[T_ae_min; T_e0]).*(u_para0_half_nodes > 0) + (n0_pos.*[T_e0; T_ae_max]).*(u_para0_half_nodes <= 0)); % upwinding
 
@@ -123,6 +135,7 @@ function [f_hat] = get_f_hat(f, v_para, v_perp, R_const, x_min, x_max)
 
     f0 = maxwellian(n0(x_min), v_para, v_perp, u_para0(x_min), T0(x_min), R_const);
     f_end = maxwellian(n0(x_max), v_para, v_perp, u_para0(x_max), T0(x_max), R_const);
+
     f = cat(3, f0, f, f_end);
     f_size = size(f);
     f_hat = zeros(f_size(1), f_size(2), f_size(3)-1);

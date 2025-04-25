@@ -52,7 +52,7 @@ nvals(1, :) = n;
 uvals(1, :) = u_para;
 Te_vals(1, :) = Te;
 Ta_vals(1, :) = Ta;
-
+tic
 figure; clf;
 for tn = 2:numel(tvals)
     disp(['t = ', num2str(tvals(tn))])
@@ -73,15 +73,15 @@ for tn = 2:numel(tvals)
     % reconstruct f
     f = maxwellian(n, v_para, v_perp, u_para, Ta, R_const);
 
-    plot_freq = 10;
+    plot_freq = 25;
     if mod(tvals(tn), plot_freq) < 0.25
-        subplot(4, 3, floor(tvals(tn) / plot_freq)+1);
+        subplot(3, 2, floor(tvals(tn) / plot_freq)+1);
         plot(xvals, nvals(tn, :), "LineWidth",1.5); hold on;
         plot(xvals, uvals(tn, :)./uvals(tn, 1), "LineWidth",1.5);
         plot(xvals, Te_vals(tn, :), "LineWidth",1.5);
         plot(xvals, Ta_vals(tn, :), "LineWidth",1.5);
         title(['tn=', num2str(tvals(tn))]);
-        ylim([0, 2]);
+        ylim([0, 1.5]);
         drawnow;
         pause(0.05);
 
@@ -92,6 +92,8 @@ for tn = 2:numel(tvals)
     end
 end
 legend('n', 'u/u0', 'T_e', 'T_\alpha')
+toc
+
 
 %%
 
