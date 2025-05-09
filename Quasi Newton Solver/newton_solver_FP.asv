@@ -75,10 +75,10 @@ function [n, nu, nU, T_e] = newton_solver_FP(f, n0, u_para0, U0, T_e0, dt, dx, d
     R2 = nU - (n0.*U0) + (dt/dx).*(Q_hat_pos - Q_hat_neg) - (((dt*qa*nu)./(2*dx*qe*n)).*((n_pos.*Te_pos) - (n_neg.*Te_neg))) - (((dt.*3.*sqrt(2*me))./((ma.^2).*(T_e.^(3/2)))) .* (((n.^2).*T_e) - ((ma/3).*((2.*n.*nU) - (nu.^2)))));
     R3 = (n0.*T_e) - (n0.*T_e0) + ((5*dt)/(3*dx)).*((u_para0_half_nodes(2:end).*nTe_hat_pos) - (u_para0_half_nodes(1:end-1).*nTe_hat_neg)) - (((dt*u)./(3*dx)).*(nTe_pos - nTe_neg)) - (((2*dt)/(3*dx.^2)) .* ((kappa_pos.*(Te_pos - T_e)) - (kappa_neg.*(T_e - Te_neg)))) - (((dt.*2.*sqrt(2*me))./(ma.*(T_e.^(3/2)))) .* (((ma/3).*((2*n.*nU) - (nu.^2))) - ((n.^2).*T_e)));
     R = [R1; R2; R3];
-
+    
     
     tol = min(5e-12, max(abs(R))*5e-10); % ensure we don't get worse!
-   
+    
     while (max(abs(R)) > tol)
         % define partial derivatives of residual
         nu_nu = spdiags(ones(Nx), 0, Nx, Nx);
@@ -123,8 +123,10 @@ function [n, nu, nU, T_e] = newton_solver_FP(f, n0, u_para0, U0, T_e0, dt, dx, d
         R2 = nU - (n0.*U0) + (dt/dx).*(Q_hat_pos - Q_hat_neg) - (((dt*qa*nu)./(2*dx*qe*n)).*((n_pos.*Te_pos) - (n_neg.*Te_neg))) - (((dt.*3.*sqrt(2*me))./((ma.^2).*(T_e.^(3/2)))) .* (((n.^2).*T_e) - ((ma/3).*((2.*n.*nU) - (nu.^2)))));
         R3 = (n.*T_e) - (n0.*T_e0) + ((5*dt)/(3*dx)).*((u_para0_half_nodes(2:end).*nTe_hat_pos) - (u_para0_half_nodes(1:end-1).*nTe_hat_neg)) - (((dt*u)./(3*dx)).*(nTe_pos - nTe_neg)) - (((2*dt)/(3*dx.^2)) .* ((kappa_pos.*(Te_pos - T_e)) - (kappa_neg.*(T_e - Te_neg)))) - (((dt.*2.*sqrt(2*me))./(ma.*(T_e.^(3/2)))) .* (((ma/3).*((2*n.*nU) - (nu.^2))) - ((n.^2).*T_e)));
         R = [R1; R2; R3];
+
+        disp(max(abs(R)))
+        wr
     end
-  
     % parameters to return
     nu = (y(1:Nx));
     nU = y(Nx+1:2*Nx);
@@ -142,10 +144,10 @@ function [f_hat] = get_f_hat(f, v_para, v_perp, R_const, x_min, x_max)
     f_size = size(f);
     f_hat = zeros(f_size(1), f_size(2), f_size(3)-1);
 
-    v_para_split_idx = find(v_para(1, :) > 0, 1); % upwinding!
+    v_para_split_idx = find(v_para > 0, 1); % upwinding!
     for i = 1:size(f, 3)-1 % loop through spatial nodes
-        f_hat(:, 1:v_para_split_idx-1, i) = f(:, 1:v_para_split_idx-1, i+1);
-        f_hat(:, v_para_split_idx:end, i) = f(:, v_para_split_idx:end, i);
+        f_hat(1:v_para_split_idx-1, :, i) = f(1:v_para_split_idx-1, :, i+1);
+        f_hat(v_para_split_idx:end, :, i) = f(v_para_split_idx:end, :, i);
     end
 
 end

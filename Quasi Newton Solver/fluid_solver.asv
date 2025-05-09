@@ -94,6 +94,9 @@ end
 legend('n', 'u/u0', 'T_e', 'T_\alpha')
 toc
 
+figure; clf;
+surf(, Z, f);
+
 %%
 
 figure; clf;

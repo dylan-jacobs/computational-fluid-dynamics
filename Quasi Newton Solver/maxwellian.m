@@ -1,6 +1,6 @@
 function [f] = maxwellian(n, v_para, v_perp, u_para, T, R)
     Nx = numel(n);
-    Nv = size(v_para);
+    Nv = size(v_perp);
     f = zeros(Nv(1), Nv(2), Nx);
     
     for i = 1:Nx

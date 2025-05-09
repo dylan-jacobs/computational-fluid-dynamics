@@ -1,6 +1,6 @@
-function [X, R, Z, dx, dr, dz] = GetXV(Nx, N_vx, N_vz, interval)
+function [X, R, Z, dx, dr, dz] = GetRZ(Nx, N_vr, N_vz, interval)
     xvals = linspace(interval(1), interval(2), Nx+1)';
-    rvals = linspace(interval(3), interval(4), N_vx+1)';
+    rvals = linspace(interval(3), interval(4), N_vr+1)';
     zvals = linspace(interval(5), interval(6), N_vz+1)';
     dx = xvals(2) - xvals(1);
     dr = rvals(2) - rvals(1);
