@@ -55,8 +55,8 @@ function [Vr3, S3, Vz3, r3] = DIRK3Timestep(Vr0, S0, Vz0, dt, tval, rvals, zvals
     [Vr_star3, Vz_star3] = reduced_augmentation([Vr_dagger3, Vr2, Vr1, Vr0], [Vz_dagger3, Vz2, Vz1, Vz0], rvals);
 
     % K/L-Step
-    K3 = sylvester(speye(size(Fr3)) - (nu*dt*Fr3), -nu*dt*(Fz3*Vz_star3)'*Vz_star3, W2*Vz_star3);
-    L3 = sylvester(speye(size(Fz3)) - (nu*dt*Fz3), -nu*dt*(Fr3*Vr_star3)'*(rvals .* Vr_star3), (W2')*(rvals .* Vr_star3));
+    K3 = sylvester(eye(size(Fr3)) - (nu*dt*Fr3), -nu*dt*(Fz3*Vz_star3)'*Vz_star3, W2*Vz_star3);
+    L3 = sylvester(eye(size(Fz3)) - (nu*dt*Fz3), -nu*dt*(Fr3*Vr_star3)'*(rvals .* Vr_star3), (W2')*(rvals .* Vr_star3));
 
     % Get bases
     [Vr_ddagger3, ~] = qr2(K3, rvals); [Vz_ddagger3, ~] = qr(L3, 0);
@@ -65,7 +65,7 @@ function [Vr3, S3, Vz3, r3] = DIRK3Timestep(Vr0, S0, Vz0, dt, tval, rvals, zvals
     [Vr3, Vz3] = reduced_augmentation([Vr_ddagger3, Vr2, Vr1, Vr0], [Vz_ddagger3, Vz2, Vz1, Vz0], rvals);
 
     % S-Step
-    S3 = sylvester(speye(size(Vr3, 2)) - (nu*dt*((rvals .* Vr3)')*Fr3*Vr3), -nu*dt*(Fz3*Vz3)'*Vz3, ((rvals .* Vr3)')*W2*Vz3);
+    S3 = sylvester(eye(size(Vr3, 2)) - (nu*dt*((rvals .* Vr3)')*Fr3*Vr3), -nu*dt*(Fz3*Vz3)'*Vz3, ((rvals .* Vr3)')*W2*Vz3);
     [Vr3, S3, Vz3, r3] = truncate_svd(Vr3, S3, Vz3, tolerance);
 
 end

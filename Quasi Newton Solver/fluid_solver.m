@@ -1,7 +1,7 @@
 % Tests the fluid solver for the FP plasma system
 clc; clear variables; close all;
 
-Nx = 60;
+Nx = 80;
 Vx = 80;
 x_min = 0;
 x_max = 200;
@@ -73,13 +73,16 @@ for tn = 2:numel(tvals)
     % reconstruct f
     f = maxwellian(n, v_para, v_perp, u_para, Ta, R_const);
 
-    plot_freq = 25;
+    plot_freq = 50;
+    num_subplots = (tf / plot_freq) + 1;
+    num_rows = ceil(sqrt(num_subplots));
+    num_cols = ceil(num_subplots / num_rows);
     if mod(tvals(tn), plot_freq) < 0.25
-        subplot(3, 2, floor(tvals(tn) / plot_freq)+1);
-        plot(xvals, nvals(tn, :), "LineWidth",1.5); hold on;
+        subplot(num_rows, num_cols, floor(tvals(tn) / plot_freq)+1);
+        plot(xvals, nvals(tn, :), "LineWidth", 1.5); hold on;
         plot(xvals, uvals(tn, :)./uvals(tn, 1), "LineWidth",1.5);
-        plot(xvals, Te_vals(tn, :), "LineWidth",1.5);
-        plot(xvals, Ta_vals(tn, :), "LineWidth",1.5);
+        plot(xvals, Te_vals(tn, :), "LineWidth", 1.5);
+        plot(xvals, Ta_vals(tn, :), "LineWidth", 1.5);
         title(['tn=', num2str(tvals(tn))]);
         ylim([0, 1.5]);
         drawnow;
@@ -98,7 +101,7 @@ toc
 %%
 
 figure; clf;
-plot(tvals, sum(nvals, 2));
+plot(tvals, dx*ma*sum(nvals, 2));
 
 % for i = 1:21
 %     idx = i*500;

@@ -1,0 +1,82 @@
+%% ------- LoMaC Truncation -------
+
+function [Vr, S, Vz, rank] = LoMaC(Vr, S, Vz, R, Z, rvals, zvals, tolerance)
+% LoMaC Truncates given maxwellian (assumed Low-Rank) to given tolerance while conserving
+% macroscopic quantities.
+
+    Nr = numel(rvals); Nz = numel(zvals);
+    dvr = rvals(2) - rvals(1);
+    dvz = zvals(2) - zvals(1);
+
+    % Step 1: Integrate to calculate macro quantities
+    p = 2*pi*sum(sum(((Vr) * S * (Vz)') .* (R .* dvr .* dvz)));
+    J = 2*pi*sum(sum(((Vr.*rvals) * S * (Vz.*zvals)') .* (R .* dvr .* dvz)));
+    k = 2*pi*sum(sum(((Vr.*(rvals.^2)/2) * S * ((Vz.*(zvals.^2)/2)')) .* (R .* dvr .* dvz)));
+
+    % Step 2: Scale by maxwellian to ensure inner product is well defined
+    % (f -> 0 as v -> infinity)
+    wr = exp(-(rvals.^2));
+    wz = exp(-(zvals.^2));
+    w = wr.*wz;
+
+    % Step 3: Orthogonal projection
+    % bases: 1, v, v.^2 - c
+    w_norm_squared = @(x, w_fxn) (2*pi*dvz*dvr*sum(x .* w_fxn .* rvals));
+
+    c = (dvr*sum(rvals.^2.*wr.*rvals))/(dvr*sum(wr.*rvals)) + (dvz*sum(zvals.^2.*wz))/(dvz*sum(wz));
+
+    w_norm_1_squared = (2*pi*dvr*dvz*sum(rvals .* wr)*sum(wz));
+    w_norm_v_squared = (2*pi*dvr*dvz*sum(rvals .* wr)*sum(zvals.^2 .* wz));
+    w_norm_v2_squared = (2*pi*dvr*dvz*sum(rvals .^ 2 .* ((rvals.^2 + zvals.^2) - c), w);
+
+    c3 = 2*pi*dr*dz*sum(sum((Rmat.^2+Zmat.^2-c).^2.*exp(-Rmat.^2-Zmat.^2).*Rmat)) %||vr^2+vz^2-c||^2, <.,.>_w
+
+
+    % f1 = ((p ./ w_norm(1, w).^2).*w) + ((J ./ w_norm(rvals, w).^2) .* w .* rvals) + (((2*k - c.*p) ./ w_norm((rvals.^2 + zvals.^2) - c).^2) .* w .* ((rvals.^2 + zvals.^2) - c));
+    
+    f2_proj_S_mtx11 = (p ./ w_norm_1_squared) - ((2*k - c.*p).*c ./ w_norm_v2_squared);
+    f2_proj_S_mtx12 = (J ./ w_norm_v_squared);
+    f2_proj_S_mtx13 = ((2*k - c.*p) ./ w_norm_v2_squared);
+
+    proj_basis_r = wr.*[ones(Nr, 1), rvals.^2];
+    proj_basis_z = wz.*[ones(Nz, 1), zvals, zvals.^2];
+    f2_proj_S_mtx   = [f2_proj_S_mtx11, f2_proj_S_mtx12, f2_proj_S_mtx13;
+                    % f2_proj_S_mtx12,            0,            0;
+                    f2_proj_S_mtx13,            0,            0];
+
+    % f2 = f - f1 (do it via SVD)
+    f2_U = [Vr, proj_basis_r];
+    % f2_S = [S, zeros(size(S, 1), size(proj_S_mtx, 2)); zeros(size(proj_S_mtx, 1), size(S, 2)), -proj_S_mtx];
+    f2_S = blkdiag(S, -f2_proj_S_mtx);
+    f2_V = [Vz, proj_basis_z];
+
+    % QR factorize
+    [f2_Vr, f2_S, f2_Vz, ~] = truncate(f2_U, f2_S, f2_V, rvals, tolerance);
+
+    f2 = f2_Vr*f2_S*f2_Vz';
+
+    % compute Pn(Te(f)) to ensure moments are kept
+    trun_f2_proj_S_mtx11 = 2*pi*dvr*dvz*((sum(sum(f2.*R)) ./ w_norm_1_squared) - (c.*sum(sum(f2.*(R.^2 + Z.^2 - c) .* R)) ./ w_norm_v2_squared));
+    trun_f2_proj_S_mtx12 = 2*pi*dvr*dvz*((sum(sum(f2.*R.*Z))) ./ w_norm_v_squared);
+    trun_f2_proj_S_mtx13 = 2*pi*dvr*dvz*((sum(sum(f2.*(R.^2 + Z.^2 - c) .* R)) ./ w_norm_v2_squared));
+
+    % proj_basis_r = w1.*[ones(Nr, 1), rvals, rvals.^2];
+    % proj_basis_z = w2.*[ones(Nz, 1), zvals, zvals.^2];
+    trun_f2_proj_S_mtx   = [trun_f2_proj_S_mtx11, trun_f2_proj_S_mtx12, trun_f2_proj_S_mtx13;
+                    % trun_f2_proj_S_mtx12,            0,            0;
+                    trun_f2_proj_S_mtx13,            0,            0];
+
+    f_mass_S = f2_proj_S_mtx - trun_f2_proj_S_mtx;
+
+    [Vr, S, Vz, rank] = truncate([proj_basis_r, f2_Vr], blkdiag(f_mass_S, f2_S), [proj_basis_z, f2_Vz], rvals, 1e-14);
+    size(S)
+end
+
+function [Vr, S, Vz, rank] = truncate(Vr_aug, S_aug, Vz_aug, rvals, tolerance)
+    [Qr, Rr] = qr2(Vr_aug, rvals); [Qz, Rz] = qr(Vz_aug, 0);
+    [U, Sigma, V] = svd(Rr*S_aug*(Rz'), 0); 
+    rank = find(diag(Sigma) > tolerance, 1, 'last');
+    Vr = Qr*U(:, 1:rank);
+    S = Sigma(1:rank, 1:rank);
+    Vz = Qz*V(:, 1:rank);
+end

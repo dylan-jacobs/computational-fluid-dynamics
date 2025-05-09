@@ -76,7 +76,7 @@ function [n, nu, nU, T_e] = newton_solver_FP(f, n0, u_para0, U0, T_e0, dt, dx, d
     R = [R1; R2; R3];
     
     tol = min(5e-12, max(R)*5e-10); % ensure we don't get worse!
-
+    
     while (max(R) > tol)
         % define partial derivatives of residual
         nu_nu = spdiags(ones(Nx), 0, Nx, Nx);
@@ -122,7 +122,6 @@ function [n, nu, nU, T_e] = newton_solver_FP(f, n0, u_para0, U0, T_e0, dt, dx, d
         R3 = (n.*T_e) - (n0.*T_e0) + ((5*dt)/(3*dx)).*((u_para0_half_nodes(2:end).*nTe_hat_pos) - (u_para0_half_nodes(1:end-1).*nTe_hat_neg)) - (((dt*u)./(3*dx)).*(nTe_pos - nTe_neg)) - (((2*dt)/(3*dx.^2)) .* ((kappa_pos.*(Te_pos - T_e)) - (kappa_neg.*(T_e - Te_neg)))) - (((dt.*2.*sqrt(2*me))./(ma.*(T_e.^(3/2)))) .* (((ma/3).*((2*n.*nU) - (nu.^2))) - ((n.^2).*T_e)));
         R = [R1; R2; R3];
     end
-
     % parameters to return
     nu = (y(1:Nx));
     nU = y(Nx+1:2*Nx);

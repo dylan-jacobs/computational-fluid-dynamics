@@ -29,15 +29,15 @@ end
 
 [X, V, ~, ~] = GetXY(Nx, Nv, interval);
 [f_matrix, EF, mass, L1, L2, energy, entropy, tvals] = VPSolver(discretizationType, Nx, Nv, lambda, interval, tf, f0);
-
+%%
 figure(1);
 semilogy(tvals, EF, 'LineWidth', 1.5);
 xlabel('time'); ylabel('E_2'); title('L_2 norm of Electric Field over Time');
-
+%%
 figure(2);
 plot(tvals, mass, 'LineWidth', 1.5);
 xlabel('time'); ylabel('E_2'); title('Mass over Time');
-
+%%
 figure(3);
 plot(tvals, L1, 'LineWidth', 1.5);
 xlabel('time'); ylabel('L_1'); title('L_1 norm of Probability Distribution f over Time');

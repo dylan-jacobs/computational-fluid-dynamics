@@ -9,7 +9,7 @@ function [Flux] = GetRadialFluxSPCC(tval, rvals, B, D)
         lambdavals(i) = GaussLegendre(rvals(i), rvals(i+1), weights, nodes, @(x) B(x, tval)./D(i));
     end
     lambdavals(N) = GaussLegendre(rvals(N), rvals(N) + dr, weights, nodes, @(x) B(x, tval)./D(N));
-    lambdavals = lambdavals + 1E-12; % prevent zero division
+    lambdavals = lambdavals + 1E-14; % prevent zero division
     C_tilde = (D./dr).*lambdavals;
     deltavals = (1./lambdavals) + (1./(1-exp(lambdavals)));
     C_tilde_matrix = spdiags(C_tilde, 0, N, N);
@@ -19,8 +19,6 @@ function [Flux] = GetRadialFluxSPCC(tval, rvals, B, D)
     F_pos = (C_tilde_matrix*f_tilde_matrix) + ((1/dr).*D_matrix);
     F_pos(end, :) = zeros(1, N);
     F_neg = [zeros(1, N); F_pos(1:end-1, :)];
-
-    F_neg(:, end)
 
     r_inv = spdiags(1./rvals, 0, N, N);
     r_pos = spdiags(rvals + (dr/2), 0, N, N);

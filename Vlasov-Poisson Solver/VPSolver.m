@@ -41,9 +41,13 @@ function [f_matrix, EF, mass, L1, L2, energy, entropy, tvals] = VPSolver(discret
     f_matrix(:, :, 1) = f;
     [EF(1), mass(1), L1(1), L2(1), energy(1), entropy(1)] = quantities(f, V, interval(2) - interval(1), Nx, dx, dv);
     for n = 2:numel(tvals)
-        t0 = tvals(n-1);
+        t0 = tvals(n-1)
         dt = tvals(n) - tvals(n-1); % DO NOT FORGET TO INCLUDE THIS!!!!!
         f = Time_Discretization_Nonsplitting(discretizationType, f, t0, dt, X, V);
+
+        % truncate???
+        f = LoMaC(f, V(1, :), dv, 1e-4);
+
         f_matrix(:, :, n) = f;
 
         [EF(n), mass(n), L1(n), L2(n), energy(n), entropy(n)] = quantities(f, V, interval(2) - interval(1), Nx, dx, dv);
