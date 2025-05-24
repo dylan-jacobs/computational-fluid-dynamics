@@ -7,19 +7,21 @@
 function [n, nu, nU, T_e] = newton_solver_FP(f, n0, u_para0, U0, T_e0, dt, dx, dv_para, dv_perp, v_para, v_perp, qa, qe, ma, me, R_const, x_min, x_max)
 
     Nx = numel(n0); % max val of i, j
+    x_ghost_left = x_min - dx/2; % left ghost cell
+    x_ghost_right = x_max + dx/2; % right ghost cell
 
     % get boundary conditions
     [n0_boundary, u_para0_boundary, T_ae_boundary] = get_boundaries(); % Ta = Te at boundary --> T_ae
-    n0_min = n0_boundary(x_min); n0_max = n0_boundary(x_max);
-    u_para0_min = u_para0_boundary(x_min); u_para0_max = u_para0_boundary(x_max);
-    T_ae_min = T_ae_boundary(x_min); T_ae_max = T_ae_boundary(x_max);
+    n0_min = n0_boundary(x_ghost_left); n0_max = n0_boundary(x_ghost_right);
+    u_para0_min = u_para0_boundary(x_ghost_left); u_para0_max = u_para0_boundary(x_ghost_right);
+    T_ae_min = T_ae_boundary(x_ghost_left); T_ae_max = T_ae_boundary(x_ghost_right);
 
     n0_pos = [n0; n0_max]; n0_neg = [n0_min; n0];
     u_para0_half_nodes = (u_para0(1:end-1) + u_para0(2:end))/2; u_para0_half_nodes = [u_para0_min; u_para0_half_nodes; u_para0_max];
     Te0_pos = [T_e0(2:end); T_ae_max]; Te0_neg = [T_ae_min; T_e0(1:end-1)];
 
     % first, compute fluxes via summation
-    f_hat = get_f_hat(f, v_para, v_perp, R_const, x_min, x_max);
+    f_hat = get_f_hat(f, v_para, v_perp, R_const, x_ghost_left, x_ghost_right);
 
     % ---- Compute f_hat using f -----
     % f0 = maxwellian(n0_min, v_para, v_perp, u_para0_min, T_ae_min, R_const);
@@ -43,7 +45,6 @@ function [n, nu, nU, T_e] = newton_solver_FP(f, n0, u_para0, U0, T_e0, dt, dx, d
         Q_hat(i) = pi*(sum(sum(v_para .* (v_para.^2 + v_perp.^2) .* f_hat(:, :, i) .* (v_perp.*dv_para.*dv_perp))));
     end
     nTe_hat = ((n0_neg.*[T_ae_min; T_e0]).*(u_para0_half_nodes > 0) + (n0_pos.*[T_e0; T_ae_max]).*(u_para0_half_nodes <= 0)); % upwinding
-
     % shift bounds to get flux pos/neg
     nu_hat_pos = nu_hat(2:end); nu_hat_neg = nu_hat(1:end-1);
 
@@ -129,6 +130,16 @@ function [n, nu, nU, T_e] = newton_solver_FP(f, n0, u_para0, U0, T_e0, dt, dx, d
     nu = (y(1:Nx));
     nU = y(Nx+1:2*Nx);
     T_e = y(2*Nx+1:end);
+
+    % should delete: attempt to force all macros to BCs artificially
+    % nu(1) = n0_min*u_para0_min;
+    % nu(end) = n0_max*u_para0_max;
+    % U_min = 0.5*((3*T_ae_min/ma) + (u_para0_min.^2));
+    % U_max = 0.5*((3*T_ae_max/ma) + (u_para0_max.^2));
+    % nU(1) = n0_min*U_min;
+    % nU(end) = n0_max*U_max;
+    % T_e(1) = T_ae_min;
+    % T_e(end) = T_ae_max;
 end
 
 function [f_hat] = get_f_hat(f, v_para, v_perp, R_const, x_min, x_max)
@@ -137,15 +148,13 @@ function [f_hat] = get_f_hat(f, v_para, v_perp, R_const, x_min, x_max)
 
     f0 = maxwellian(n0(x_min), v_para, v_perp, u_para0(x_min), T0(x_min), R_const);
     f_end = maxwellian(n0(x_max), v_para, v_perp, u_para0(x_max), T0(x_max), R_const);
-
+    
     f = cat(3, f0, f, f_end);
     f_size = size(f);
     f_hat = zeros(f_size(1), f_size(2), f_size(3)-1);
-
     v_para_split_idx = find(v_para(1, :) > 0, 1); % upwinding!
     for i = 1:size(f, 3)-1 % loop through spatial nodes
         f_hat(:, 1:v_para_split_idx-1, i) = f(:, 1:v_para_split_idx-1, i+1);
         f_hat(:, v_para_split_idx:end, i) = f(:, v_para_split_idx:end, i);
     end
-
 end

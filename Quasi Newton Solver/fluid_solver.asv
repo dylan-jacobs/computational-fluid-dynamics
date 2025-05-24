@@ -1,16 +1,17 @@
 % Tests the fluid solver for the FP plasma system
-clc; clear variables; close all;
+% clc; 
+clear variables; %close all;
 
 Nx = 80;
-Vr = 60;
-Vz = 120;
+Vr = 50;
+Vz = 100;
 x_min = 0;
 x_max = 200;
 interval = [x_min, x_max, 0, 8, -8, 10]; % 1D in x, 2D in v (first: r interval, second: z interval)
 
 dt = 0.3;
 tf = 100;
-tvals = [0, 5e-3, 5e-3 + dt:dt:tf];
+tvals = [0, 5e-3:dt:tf];
 if tvals(end) ~= tf
     tvals = [tvals, tf];
 end
@@ -74,7 +75,7 @@ for tn = 2:numel(tvals)
     % reconstruct f
     f = maxwellian(n, v_para, v_perp, u_para, Ta, R_const);
 
-    plot_freq = 50;
+    plot_freq = 10;
     num_subplots = (tf / plot_freq) + 1;
     num_rows = ceil(sqrt(num_subplots));
     num_cols = ceil(num_subplots / num_rows);
@@ -95,12 +96,12 @@ legend('n', 'u/u0', 'T_e', 'T_\alpha')
 toc
 
 figure; clf;
-surf(, Z, f);
-
-%%
-
-figure; clf;
-plot(tvals, dx*ma*sum(nvals, 2));
+plot(xvals, nvals(tn, :), "LineWidth", 1.5); hold on;
+plot(xvals, uvals(tn, :)./uvals(tn, 1), "LineWidth",1.5);
+plot(xvals, Te_vals(tn, :), "LineWidth", 1.5);
+plot(xvals, Ta_vals(tn, :), "LineWidth", 1.5);
+title(['tn=', num2str(tvals(tn))]);
+ylim([0, 1.5]);
 
 % for i = 1:21
 %     idx = i*500;
