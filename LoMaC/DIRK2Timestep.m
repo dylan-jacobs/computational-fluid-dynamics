@@ -7,7 +7,7 @@
 %          rank: r1
 
 
-function [Vr, S, Vz, r1] = DIRK2Timestep(Vr0, S0, Vz0, dt, tval, rvals, zvals, Br, Bz, Drr, Dzz, tolerance)
+function [Vr, S, Vz, r1] = DIRK2Timestep(Vr0, S0, Vz0, dt, tval, R, Z, rvals, zvals, Br, Bz, Drr, Dzz, tolerance, f_inf)
 
     Fr1 = GetRadialFluxSPCC(tval, rvals, Br, Drr);
     Fz1 = GetZFluxSPCC(tval, zvals, Bz, Dzz);
@@ -15,13 +15,13 @@ function [Vr, S, Vz, r1] = DIRK2Timestep(Vr0, S0, Vz0, dt, tval, rvals, zvals, B
     nu = 1-(sqrt(2)/2);
 
     % Stage 1: Backward Euler
-    [Vr1, S1, Vz1, ~] = BackwardEulerTimestep(Vr0, S0, Vz0, nu*dt, tval, rvals, zvals, Br, Bz, Drr, Dzz, tolerance);
+    [Vr1, S1, Vz1, ~] = BackwardEulerTimestep(Vr0, S0, Vz0, nu*dt, tval, R, Z, rvals, zvals, Br, Bz, Drr, Dzz, tolerance, f_inf);
 
     W0 = (Vr0*S0*(Vz0')) + ((1-nu)*dt*(((Fr1*(Vr1)*S1*(Vz1')) + ((Vr1)*S1*((Fz1*Vz1)')))));
 
     % Reduced Augmentation
     % Predict V_dagger using B. Euler for second stage
-    [Vr1_dagger, ~, Vz1_dagger, ~] = BackwardEulerTimestep(Vr0, S0, Vz0, dt, tval, rvals, zvals, Br, Bz, Drr, Dzz, tolerance);
+    [Vr1_dagger, ~, Vz1_dagger, ~] = BackwardEulerTimestep(Vr0, S0, Vz0, dt, tval, R, Z, rvals, zvals, Br, Bz, Drr, Dzz, tolerance, f_inf);
     [Vr_star, Vz_star] = reduced_augmentation([Vr1_dagger, Vr1, Vr0], [Vz1_dagger, Vz1, Vz0], rvals);
 
     % Stage 2: KLS Steps
@@ -40,5 +40,6 @@ function [Vr, S, Vz, r1] = DIRK2Timestep(Vr0, S0, Vz0, dt, tval, rvals, zvals, B
 
     % S-Step
     S = sylvester(eye(size(Vr, 2)) - (nu*dt*((rvals .* Vr)')*Fr2*Vr), -nu*dt*(Fz2*Vz)'*Vz, ((rvals .* Vr)')*W0*Vz);
-    [Vr, S, Vz, r1] = truncate_svd(Vr, S, Vz, tolerance);
+    % [Vr, S, Vz, r1] = truncate_svd(Vr, S, Vz, tolerance);
+    [Vr, S, Vz, r1] = LoMaC(Vr, S, Vz, R, Z, rvals, zvals, tolerance, f_inf);
 end

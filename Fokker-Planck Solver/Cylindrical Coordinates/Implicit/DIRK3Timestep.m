@@ -6,7 +6,7 @@
 % Outputs: updated vases Vx3, S3, Vy3
 %          rank: r3
 
-function [Vr3, S3, Vz3, r3] = DIRK3Timestep(Vr0, S0, Vz0, dt, tval, rvals, zvals, Br, Bz, Drr, Dzz, tolerance)
+function [Vr3, S3, Vz3, r3] = DIRK3Timestep(Vr0, S0, Vz0, dt, tval, R, Z, rvals, zvals, Br, Bz, Drr, Dzz, tolerance, f_inf)
 
     Fr1 = GetRadialFluxSPCC(tval, rvals, Br, Drr);
     Fz1 = GetZFluxSPCC(tval, zvals, Bz, Dzz);
@@ -17,8 +17,8 @@ function [Vr3, S3, Vz3, r3] = DIRK3Timestep(Vr0, S0, Vz0, dt, tval, rvals, zvals
     beta2 = (3/2)*(nu^2) - (5*nu) + (5/4);
     
     % Stage 1: Backward Euler
-    [Vr1, S1, Vz1, ~] = BackwardEulerTimestep(Vr0, S0, Vz0, nu*dt, tval, rvals, zvals, Br, Bz, Drr, Dzz, tolerance);
-    [Vr_dagger1, ~, Vz_dagger1, ~] = BackwardEulerTimestep(Vr0, S0, Vz0, ((1+nu)/2)*dt, tval, rvals, zvals, Br, Bz, Drr, Dzz, tolerance);
+    [Vr1, S1, Vz1, ~] = BackwardEulerTimestep(Vr0, S0, Vz0, nu*dt, tval, R, Z, rvals, zvals, Br, Bz, Drr, Dzz, tolerance, f_inf);
+    [Vr_dagger1, ~, Vz_dagger1, ~] = BackwardEulerTimestep(Vr0, S0, Vz0, ((1+nu)/2)*dt, tval, R, Z, rvals, zvals, Br, Bz, Drr, Dzz, tolerance, f_inf);
 
     Y1 = (((Fr1*Vr1*S1*(Vz1')) + (Vr1*S1*((Fz1*Vz1)'))));
     W1 = (Vr0*S0*(Vz0')) + (((1-nu)/2)*dt*Y1);
@@ -47,7 +47,7 @@ function [Vr3, S3, Vz3, r3] = DIRK3Timestep(Vr0, S0, Vz0, dt, tval, rvals, zvals
     Fr3 = GetRadialFluxSPCC(tval + dt, rvals, Br, Drr);
     Fz3 = GetZFluxSPCC(tval + dt, zvals, Bz, Dzz);
     % Predict V_dagger using B. Euler
-    [Vr_dagger3, ~, Vz_dagger3, ~] = BackwardEulerTimestep(Vr0, S0, Vz0, dt, tval, rvals, zvals, Br, Bz, Drr, Dzz, tolerance);
+    [Vr_dagger3, ~, Vz_dagger3, ~] = BackwardEulerTimestep(Vr0, S0, Vz0, dt, tval, R, Z, rvals, zvals, Br, Bz, Drr, Dzz, tolerance, f_inf);
     Y2 = (((Fr3*Vr2*S2*(Vz2')) + (Vr2*S2*((Fz3*Vz2)'))));
     W2 = (Vr0*S0*(Vz0')) + (beta1*dt*Y1) + (beta2*dt*Y2);
       
@@ -66,6 +66,6 @@ function [Vr3, S3, Vz3, r3] = DIRK3Timestep(Vr0, S0, Vz0, dt, tval, rvals, zvals
 
     % S-Step
     S3 = sylvester(eye(size(Vr3, 2)) - (nu*dt*((rvals .* Vr3)')*Fr3*Vr3), -nu*dt*(Fz3*Vz3)'*Vz3, ((rvals .* Vr3)')*W2*Vz3);
-    [Vr3, S3, Vz3, r3] = truncate_svd(Vr3, S3, Vz3, tolerance);
-
+    % [Vr3, S3, Vz3, r3] = truncate_svd(Vr3, S3, Vz3, tolerance);
+    [Vr3, S3, Vz3, r3] = LoMaC(Vr3, S3, Vz3, R, Z, rvals, zvals, tolerance, f_inf);
 end

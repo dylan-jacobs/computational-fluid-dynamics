@@ -39,14 +39,14 @@ function [f, data] = FokkerPlanckImplicitSolver(type, f, dt, Nr, Nz, tf, interva
 
     for n = 2:numel(tvals)
         dt = tvals(n) - tvals(n-1);
-        % disp(['t = ', num2str(tvals(n))]);
+        disp(['t = ', num2str(tvals(n))]);
         switch (type)
             case '1'
-                [Vr, S, Vz, ranks(n)] = BackwardEulerTimestep(Vr, S, Vz, dt, tvals(n), rvals, zvals, B, B, D, D, tolerance);
+                [Vr, S, Vz, ranks(n)] = BackwardEulerTimestep(Vr, S, Vz, dt, tvals(n), R, Z, rvals, zvals, B, B, D, D, tolerance, f_inf);
             case '2'
-                [Vr, S, Vz, ranks(n)] = DIRK2Timestep(Vr, S, Vz, dt, tvals(n), rvals, zvals, B, B, D, D, tolerance);
+                [Vr, S, Vz, ranks(n)] = DIRK2Timestep(Vr, S, Vz, dt, tvals(n), R, Z, rvals, zvals, B, B, D, D, tolerance, f_inf);
             case '3'
-                [Vr, S, Vz, ranks(n)] = DIRK3Timestep(Vr, S, Vz, dt, tvals(n), rvals, zvals, B, B, D, D, tolerance);
+                [Vr, S, Vz, ranks(n)] = DIRK3Timestep(Vr, S, Vz, dt, tvals(n), R, Z, rvals, zvals, B, B, D, D, tolerance, f_inf);
 
         end
         f = Vr*S*(Vz');

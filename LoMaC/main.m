@@ -55,7 +55,7 @@ for k = 1:numel(lambdavals)
     dt = lambdavals(k)/(1/dr + 1/dz);                   % implicit
     disp([num2str(k), '/', num2str(numel(lambdavals))]);
 
-    [f, data] = FokkerPlanckImplicitSolver('1', f0, dt, Nr, Nz, tf, interval, B, D, false, f_inf, tolerance, r0);
+    [f, data] = FokkerPlanckImplicitSolver('2', f0, dt, Nr, Nz, tf, interval, B, D, false, f_inf, tolerance, r0);
     errors(k, 1) = dr*dz*sum((sum(abs(f - f_inf)))); % L1 error
     errors(k, 1) = data(end, 1);
 end
@@ -64,8 +64,10 @@ l1 = data(:, 1);
 positivity = data(:, 2);
 relative_entropy = data(:, 3);
 mass = data(:, 4);
-tvals = data(:, 5);
-ranks1 = data(:, 6);
+bulk_vel = data(:, 5);
+temp = data(:, 6);
+tvals = data(:, 7);
+ranks1 = data(:, 8);
 
 figure(1); clf; surf(R, Z, f);
 colorbar; shading interp;
@@ -79,10 +81,6 @@ colorbar; shading interp;
 xlabel('V_r'); ylabel('V_z'); zlabel('f(V_r, V_z, t)'); title([sprintf('f_{exact} at time t=%s', num2str(tf, 4))]);
 % saveas(gcf, sprintf('%s/exact_solution.jpg', savepath));
 % saveas(gcf, sprintf('%s/exact_solution.fig', savepath));
-
-figure(7); clf;
-loglog(lambdavals, errors(:, 1), 'g-', 'LineWidth', 1.5); hold on;
-loglog(lambdavals, lambdavals .^ 1, 'g--', 'LineWidth', 1.5);
 
 % l1 decay
 figure(3); clf; semilogy(tvals, l1, 'black-', 'LineWidth', 1.5);
@@ -105,13 +103,21 @@ xlabel('t'); ylabel('Relative entropy'); title('Relative entropy of numerical so
 % Mass
 figure(6); clf; plot(tvals, abs(mass-mass(1))/mass(1), 'red-', 'LineWidth', 1.5);
 xlabel('t'); ylabel('relative mass'); title('Relative mass of numerical solution over time');
+
+% Bulk velocity
+figure(7); clf; plot(tvals, abs(bulk_vel-bulk_vel(1))/bulk_vel(1), 'red-', 'LineWidth', 1.5);
+xlabel('t'); ylabel('relative bulk velocity'); title('Relative bulk velocity of numerical solution over time');
+
+% Temperature
+figure(8); clf; plot(tvals, abs(temp-temp(1))/temp(1), 'red-', 'LineWidth', 1.5);
+xlabel('t'); ylabel('relative temperature'); title('Relative temperature of numerical solution over time');
 % saveas(gcf, sprintf('%s/mass.jpg', savepath));
 % saveas(gcf, sprintf('%s/mass.fig', savepath));
 
 % Rank plot
-% figure(7); clf;
-% plot(tvals, ranks1, 'black-', 'LineWidth', 1.5); hold on;
-% % plot(ranks2(:, 1), ranks2(:, 2), 'blue-', 'LineWidth', 1.5);
-% % plot(ranks3(:, 1), ranks3(:, 2), 'green-', 'LineWidth', 1.5);
-% xlabel('time'); ylabel('rank'); title('Rank plot over time');
-% legend('Backward Euler', 'RK2', 'RK3');
+figure(9); clf;
+plot(tvals, ranks1, 'black-', 'LineWidth', 1.5); hold on;
+% plot(ranks2(:, 1), ranks2(:, 2), 'blue-', 'LineWidth', 1.5);
+% plot(ranks3(:, 1), ranks3(:, 2), 'green-', 'LineWidth', 1.5);
+xlabel('time'); ylabel('rank'); title('Rank plot over time');
+legend('Backward Euler', 'RK2', 'RK3');

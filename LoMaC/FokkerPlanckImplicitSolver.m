@@ -32,11 +32,12 @@ function [f, data] = FokkerPlanckImplicitSolver(type, f, dt, Nr, Nz, tf, interva
     Vz = Vz(:, 1:r0);
     f = Vr*S*(Vz');
 
-    l1 = zeros(numel(tvals), 1); l1(1) = dr*dz*sum(sum(abs(rvals .* (f-f_inf))));
+    l1 = zeros(numel(tvals), 1); l1(1) = 2*pi*dr*dz*sum(sum(abs(rvals .* (f-f_inf))));
     positivity = zeros(numel(tvals), 1); positivity(1) = min(min(f));
-    relative_entropy = zeros(numel(tvals), 1); relative_entropy(1) = dr*dz*sum(sum(rvals .* (f.*(log(f./f_inf)))));
-    mass = zeros(numel(tvals), 1); mass(1) = dr*dz*sum(sum(rvals .* f));
-
+    relative_entropy = zeros(numel(tvals), 1); relative_entropy(1) = 2*pi*dr*dz*sum(sum(rvals .* (f.*(log(f./f_inf)))));
+    mass = zeros(numel(tvals), 1); mass(1) = 2*pi*dr*dz*sum(sum(f .* R));
+    bulk_vel = zeros(numel(tvals), 1); bulk_vel(1) = pi*sum(sum((((Vr.*(rvals.^2)) * S * Vz') + (Vr* S * ((Vz.*(zvals.^2))'))) .* (R .* dr .* dz)));
+    temp = zeros(numel(tvals), 1); temp(1) = pi*dr*dz*sum(sum((zvals.^2 + rvals.^2) .* f .* R));
     for n = 2:numel(tvals)
         dt = tvals(n) - tvals(n-1);
         disp(['t = ', num2str(tvals(n))]);
@@ -44,17 +45,19 @@ function [f, data] = FokkerPlanckImplicitSolver(type, f, dt, Nr, Nz, tf, interva
             case '1'                
                 [Vr, S, Vz, ranks(n)] = BackwardEulerTimestep(Vr, S, Vz, dt, tvals(n), R, Z, rvals, zvals, B, B, D, D, tolerance, f_inf);
             case '2'
-                [Vr, S, Vz, ranks(n)] = DIRK2Timestep(Vr, S, Vz, dt, tvals(n), rvals, zvals, B, B, D, D, tolerance);
+                [Vr, S, Vz, ranks(n)] = DIRK2Timestep(Vr, S, Vz, dt, tvals(n), R, Z, rvals, zvals, B, B, D, D, tolerance, f_inf);
             case '3'
                 [Vr, S, Vz, ranks(n)] = DIRK3Timestep(Vr, S, Vz, dt, tvals(n), rvals, zvals, B, B, D, D, tolerance);
 
         end
         f = Vr*S*(Vz');
-        % l1(n) = dr*dz*sum(sum(abs(rvals .* (f-f_inf))));
-        l1(n) = dr*dz*sum(sum(abs(rvals .* (f-f_inf))));
+        l1(n) = 2*pi*dr*dz*sum(sum(abs(rvals .* (f-f_inf))));
         positivity(n) = min(min(f));
-        relative_entropy(n) = dr*dz*sum(sum(rvals .* (f.*(log(f./f_inf)))));
-        mass(n) = dr*dz*sum(sum(rvals .* f));
+        relative_entropy(n) = 2*pi*dr*dz*sum(sum(rvals .* (f.*(log(f./f_inf)))));
+        mass(n) = 2*pi*dr*dz*sum(sum(f .* R));
+        bulk_vel(n) = 2*pi*dr*dz*sum(sum((Vr * S * (zvals .* Vz)') .* R));
+        temp(n) = pi*sum(sum((((Vr.*(rvals.^2)) * S * Vz') + (Vr* S * ((Vz.*(zvals.^2))'))) .* (R .* dr .* dz)));
+        % temp(n) = 2*pi*dr*dz*sum(sum((Vr * S * (zvals .* Vz)') .* R));
 
         if plotTimeSteps
             figure(1); clf; surf(R, Z, f);
@@ -65,5 +68,5 @@ function [f, data] = FokkerPlanckImplicitSolver(type, f, dt, Nr, Nz, tf, interva
         end
         
     end
-    data = [l1, positivity, relative_entropy, mass, tvals, ranks];
+    data = [l1, positivity, relative_entropy, mass, bulk_vel, temp, tvals, ranks];
 end

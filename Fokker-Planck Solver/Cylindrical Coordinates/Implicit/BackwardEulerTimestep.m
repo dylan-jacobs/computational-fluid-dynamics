@@ -1,9 +1,9 @@
 % Facilitates single forward Euler timestep for the 2D Fokker-Planck system
 
-function [Vr, S, Vz, rank] = BackwardEulerTimestep(Vr0, S0, Vz0, dt, tval, rvals, zvals, Br, Bz, Drr, Dzz, tolerance)
+function [Vr, S, Vz, rank] = BackwardEulerTimestep(Vr0, S0, Vz0, dt, tval, R, Z, rvals, zvals, Br, Bz, Drr, Dzz, tolerance, f_inf)
     Fr = GetRadialFluxSPCC(tval, rvals, Br, Drr);
     Fz = GetZFluxSPCC(tval, zvals, Bz, Dzz);
-    rank = 1;
+
     Nr = size(Fr);
     Nz = size(Fz);
 
@@ -22,7 +22,8 @@ function [Vr, S, Vz, rank] = BackwardEulerTimestep(Vr0, S0, Vz0, dt, tval, rvals
     % Vz = Vz1_ddagger;
     [Vr, Vz] = reduced_augmentation([Vr1_ddagger, Vr0], [Vz1_ddagger, Vz0], rvals);
     S = sylvester(full(speye(size(Vr, 2)) - (dt*((rvals .* Vr)')*(Fr*Vr))), -dt*(Fz*Vz)'*Vz, ((rvals .* Vr)'*Vr0)*S0*((Vz0')*Vz));
-    [Vr, S, Vz, rank] = truncate_svd(Vr, S, Vz, tolerance);
+    % [Vr, S, Vz, rank] = truncate_svd(Vr, S, Vz, tolerance);
+    [Vr, S, Vz, rank] = LoMaC(Vr, S, Vz, R, Z, rvals, zvals, tolerance, f_inf);
 end
 
 
