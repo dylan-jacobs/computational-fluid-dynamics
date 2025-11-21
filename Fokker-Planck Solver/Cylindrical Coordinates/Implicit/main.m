@@ -8,15 +8,15 @@ T = 3;
 u = 0; % advection velocity
 B = @(vr, t) (vr - u); 
 D = @(vr) (R*T)*(vr.^0);
-tf = 50;
+tf = 15;
 interval = [0, 14, -16, 16];
 Nr = 100; Nz = 100;
-[rvals, zvals, dr, dz] = GetRZ(Nr, Nz, interval);
-B_max = max(0.5*(B([rvals(1:end, 1); rvals(end, 1)+dr], tf).^2) - 0.5*(B([rvals(1, 1)-dr; rvals(1:end, 1)], tf).^2));
-D_max = max(D(rvals(:, 1)));
+[Rmat, Zmat, dr, dz] = GetRZ(Nr, Nz, interval);
+B_max = max(0.5*(B([Rmat(1:end, 1); Rmat(end, 1)+dr], tf).^2) - 0.5*(B([Rmat(1, 1)-dr; Rmat(1:end, 1)], tf).^2));
+D_max = max(D(Rmat(:, 1)));
 
 tolerance = 1e-6;
-r0 = 30;
+r0 = 10;
 
 % Maxwellian parameters
 n1 = 1.902813990281176;
@@ -28,21 +28,21 @@ T2 = 0.1087698976066122;
 u_vec2 = [0, 3.246470699196378];
 
 f_M = @(n, R, T, u_vec, vr, vz) (n/((2*pi*R*T)^(3/2))).*exp(-((vr - u_vec(1)).^2 + ((vz - u_vec(2)).^2))./(2*R*T));
-f_M1 = f_M(n1, R, T1, u_vec1, rvals, zvals);
-f_M2 = f_M(n2, R, T2, u_vec2, rvals, zvals);
+f_M1 = f_M(n1, R, T1, u_vec1, Rmat, Zmat);
+f_M2 = f_M(n2, R, T2, u_vec2, Rmat, Zmat);
 
 f0 = f_M1 + f_M2;
 f_inf = @(vr, vz) (pi/(2*pi*R*T)^(3/2)).*exp(-((vr.^2) + (vz.^2))./(2*R*T));
-f_inf = f_inf(rvals, zvals);
+f_inf = f_inf(Rmat, Zmat);
 
-n0 = 2*pi*dr*dz*sum(sum(f0.*rvals));
-nM = 2*pi*dr*dz*sum(sum(f_inf.*rvals));
+n0 = 2*pi*dr*dz*sum(sum(f0.*Rmat));
+nM = 2*pi*dr*dz*sum(sum(f_inf.*Rmat));
 f_inf = (n0/nM)*f_inf;
 
-lambdavals = 3; %(0.2:0.1:6)';%(0.1:0.05:5)';
+lambdavals = 3;%(1:0.3:6)';%(0.2:0.1:6)';%(0.1:0.05:5)';
 errors = zeros(numel(lambdavals), 3);
 
-% figure(1); clf; surf(rvals, zvals, f0);shading interp;
+% figure(1); clf; surf(Rmat, Zmat, f0);shading interp;
 % legend(sprintf('N_r = %s', num2str(Nr, 3)), 'Location','northwest');
 % xlabel('v_r'); ylabel('v_z'); title([sprintf('Forward Euler approximation of 0D2V Fokker-Planck system at time %s', num2str(tf, 4))]);
 % return
@@ -57,8 +57,7 @@ for k = 1:numel(lambdavals)
     disp([num2str(k), '/', num2str(numel(lambdavals))]);
 
     [f, data] = FokkerPlanckImplicitSolver('1', f0, dt, Nr, Nz, tf, interval, B, D, false, f_inf, tolerance, r0);
-    errors(k, 1) = dr*dz*sum((sum(abs(f - f_inf)))); % L1 error
-    errors(k, 1) = data(end, 1);
+    errors(k, 1) = 2*pi*dr*dz*sum((sum(Rmat .* abs(f - f_inf)))); % L1 error
 end
 
 l1 = data(:, 1);
@@ -68,22 +67,25 @@ mass = data(:, 4);
 tvals = data(:, 5);
 ranks1 = data(:, 6);
 
-figure(1); clf; surf(rvals, zvals, f);
-colorbar; shading interp;
-legend(sprintf('N_r = %s', num2str(Nr, 3)), 'Location','northwest');
-xlabel('V_r'); ylabel('V_z'); zlabel('U'); title([sprintf('Backward Euler approximation of 0D2V Fokker-Planck system at time %s', num2str(tf, 4))]);
-saveas(gcf, sprintf('%s/numerical_solution.jpg', savepath));
-saveas(gcf, sprintf('%s/numerical_solution.fig', savepath));
+% figure(7); clf;
+% loglog(lambdavals, errors(:, 1), 'b-', 'LineWidth', 1.5); hold on;
+% loglog(lambdavals, 5e-10*(lambdavals .^ 2), 'b--', 'LineWidth', 1.5);
 
-figure(2); clf; surf(rvals, zvals, f_inf);
-colorbar; shading interp;
-xlabel('V_r'); ylabel('V_z'); zlabel('f(V_r, V_z, t)'); title([sprintf('f_{exact} at time t=%s', num2str(tf, 4))]);
-saveas(gcf, sprintf('%s/exact_solution.jpg', savepath));
-saveas(gcf, sprintf('%s/exact_solution.fig', savepath));
 
-figure(7); clf;
-loglog(lambdavals, errors(:, 1), 'g-', 'LineWidth', 1.5); hold on;
-loglog(lambdavals, lambdavals .^ 1, 'g--', 'LineWidth', 1.5);
+% %%
+% figure(1); clf; surf(Rmat, Zmat, f);
+% colorbar; shading interp;
+% legend(sprintf('N_r = %s', num2str(Nr, 3)), 'Location','northwest');
+% xlabel('V_r'); ylabel('V_z'); zlabel('U'); title([sprintf('Backward Euler approximation of 0D2V Fokker-Planck system at time %s', num2str(tf, 4))]);
+% saveas(gcf, sprintf('%s/numerical_solution.jpg', savepath));
+% saveas(gcf, sprintf('%s/numerical_solution.fig', savepath));
+% 
+% figure(2); clf; surf(Rmat, Zmat, f_inf);
+% colorbar; shading interp;
+% xlabel('V_r'); ylabel('V_z'); zlabel('f(V_r, V_z, t)'); title([sprintf('f_{exact} at time t=%s', num2str(tf, 4))]);
+% saveas(gcf, sprintf('%s/exact_solution.jpg', savepath));
+% saveas(gcf, sprintf('%s/exact_solution.fig', savepath));
+
 
 % l1 decay
 figure(3); clf; semilogy(tvals, l1, 'black-', 'LineWidth', 1.5);
@@ -110,9 +112,9 @@ saveas(gcf, sprintf('%s/mass.jpg', savepath));
 saveas(gcf, sprintf('%s/mass.fig', savepath));
 
 % Rank plot
-% figure(7); clf;
-% plot(tvals, ranks1, 'black-', 'LineWidth', 1.5); hold on;
-% % plot(ranks2(:, 1), ranks2(:, 2), 'blue-', 'LineWidth', 1.5);
-% % plot(ranks3(:, 1), ranks3(:, 2), 'green-', 'LineWidth', 1.5);
-% xlabel('time'); ylabel('rank'); title('Rank plot over time');
-% legend('Backward Euler', 'RK2', 'RK3');
+figure(7); clf;
+plot(tvals, ranks1, 'black-', 'LineWidth', 1.5); hold on;
+% plot(ranks2(:, 1), ranks2(:, 2), 'blue-', 'LineWidth', 1.5);
+% plot(ranks3(:, 1), ranks3(:, 2), 'green-', 'LineWidth', 1.5);
+xlabel('time'); ylabel('rank'); title('Rank plot over time');
+legend('Backward Euler', 'RK2', 'RK3');

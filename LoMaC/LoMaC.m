@@ -1,8 +1,8 @@
 %% ------- LoMaC Truncation -------
 
 function [Vr, S, Vz, rank] = LoMaC(Vr, S, Vz, R, Z, rvals, zvals, tolerance, f_inf)
-% LoMaC Truncates given maxwellian (assumed Low-Rank) to given tolerance while conserving
-% macroscopic quantities.
+    % LoMaC Truncates given maxwellian (assumed Low-Rank) to given tolerance while conserving
+    % macroscopic quantities.
 
     Nr = numel(rvals); Nz = numel(zvals);
     dvr = rvals(2) - rvals(1);
@@ -30,9 +30,9 @@ function [Vr, S, Vz, rank] = LoMaC(Vr, S, Vz, R, Z, rvals, zvals, tolerance, f_i
     w_norm_v_squared = (2*pi*dvr*dvz*sum(rvals .* wr)*sum(zvals.^2 .* wz));
     w_norm_v2_squared = (2*pi*dvr*dvz*sum(sum((R.^2 + Z.^2 - c).^2 .* exp(-R.^2 - Z.^2) .* R)));
     
-    f1_proj_S_mtx11 = (p ./ w_norm_1_squared) - ((2*k - c.*p).*c ./ w_norm_v2_squared);
-    f1_proj_S_mtx12 = (J ./ w_norm_v_squared);
-    f1_proj_S_mtx13 = ((2*k - c.*p) ./ w_norm_v2_squared);
+    f1_proj_S_mtx11 = (p / w_norm_1_squared) - ((2*k - c.*p).*c / w_norm_v2_squared);
+    f1_proj_S_mtx12 = (J / w_norm_v_squared);
+    f1_proj_S_mtx13 = ((2*k - c.*p) / w_norm_v2_squared);
 
     proj_basis_r = wr.*[ones(Nr, 1), rvals.^2];
     proj_basis_z = wz.*[ones(Nz, 1), zvals, zvals.^2];
@@ -50,9 +50,9 @@ function [Vr, S, Vz, rank] = LoMaC(Vr, S, Vz, R, Z, rvals, zvals, tolerance, f_i
     f2 = f2_Vr*f2_S*f2_Vz';
 
     % compute Pn(Te(f)) to ensure moments are kept
-    trun_f2_proj_S_mtx11 = 2*pi*dvr*dvz*((sum(sum(f2.*R)) ./ w_norm_1_squared) - (c*sum(sum(f2.*(R.^2 + Z.^2 - c) .* R)) ./ w_norm_v2_squared));
-    trun_f2_proj_S_mtx12 = 2*pi*dvr*dvz*((sum(sum(f2.*R.*Z))) ./ w_norm_v_squared);
-    trun_f2_proj_S_mtx13 = 2*pi*dvr*dvz*((sum(sum(f2.*(R.^2 + Z.^2 - c) .* R)) ./ w_norm_v2_squared));
+    trun_f2_proj_S_mtx11 = 2*pi*dvr*dvz*((sum(sum(f2.*R)) / w_norm_1_squared) - (c*sum(sum(f2.*(R.^2 + Z.^2 - c) .* R)) / w_norm_v2_squared));
+    trun_f2_proj_S_mtx12 = 2*pi*dvr*dvz*((sum(sum(f2.*R.*Z))) / w_norm_v_squared);
+    trun_f2_proj_S_mtx13 = 2*pi*dvr*dvz*((sum(sum(f2.*(R.^2 + Z.^2 - c) .* R)) / w_norm_v2_squared));
 
     trun_f2_proj_S_mtx   = [trun_f2_proj_S_mtx11, trun_f2_proj_S_mtx12, trun_f2_proj_S_mtx13;
                     trun_f2_proj_S_mtx13,            0,            0];

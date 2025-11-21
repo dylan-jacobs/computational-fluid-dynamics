@@ -59,6 +59,9 @@ gt = @(t) 1;
 f = @(u, x, y, t) -(cos(x./2).^2).*(sin(y).*gt(t).*u);
 g = @(u, x, y, t) (sin(x).*(cos(y./2).^2).*gt(t).*u);
 
+f = @(u, x, y, t) 0;
+g = @(u, x, y, t) 0;
+
 u0 = @(x, y) swirl(x, y);
 u_exact = @(x, y) u0(x, y);
 alpha = 1; beta = 1;

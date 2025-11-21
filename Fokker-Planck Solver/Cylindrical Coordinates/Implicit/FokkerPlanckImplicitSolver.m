@@ -11,10 +11,10 @@
 % C    = advection function
 % D    = diffusive function
 function [f, data] = FokkerPlanckImplicitSolver(type, f, dt, Nr, Nz, tf, interval, B, D, plotTimeSteps, f_inf, tolerance, r0)
-    [R, Z, dr, dz] = GetRZ(Nr, Nz, interval);
+    [Rmat, Zmat, dr, dz] = GetRZ(Nr, Nz, interval);
 
-    rvals = R(:, 1);
-    zvals = Z(1, :)';
+    rvals = Rmat(:, 1);
+    zvals = Zmat(1, :)';
     tvals = (0:dt:tf)';
     if tvals(end) ~= tf
         tvals = [tvals; tf];
@@ -32,38 +32,40 @@ function [f, data] = FokkerPlanckImplicitSolver(type, f, dt, Nr, Nz, tf, interva
     Vz = Vz(:, 1:r0);
     f = Vr*S*(Vz');
 
-    l1 = zeros(numel(tvals), 1); l1(1) = dr*dz*sum(sum(abs(rvals .* (f-f_inf))));
+    l1 = zeros(numel(tvals), 1); l1(1) = 2*pi*dr*dz*sum(sum(abs(Rmat .* (f-f_inf))));
     positivity = zeros(numel(tvals), 1); positivity(1) = min(min(f));
-    relative_entropy = zeros(numel(tvals), 1); relative_entropy(1) = dr*dz*sum(sum(rvals .* (f.*(log(f./f_inf)))));
-    mass = zeros(numel(tvals), 1); mass(1) = dr*dz*sum(sum(rvals .* f));
+    relative_entropy = zeros(numel(tvals), 1); relative_entropy(1) = 2*pi*dr*dz*sum(sum(Rmat .* (f.*(log(f./f_inf)))));
+    mass = zeros(numel(tvals), 1); mass(1) = 2*pi*dr*dz*sum(sum(Rmat .* f));
 
     for n = 2:numel(tvals)
         dt = tvals(n) - tvals(n-1);
-        disp(['t = ', num2str(tvals(n))]);
+        % disp(['t = ', num2str(tvals(n))]);
         switch (type)
             case '1'
-                [Vr, S, Vz, ranks(n)] = BackwardEulerTimestep(Vr, S, Vz, dt, tvals(n), R, Z, rvals, zvals, B, B, D, D, tolerance, f_inf);
+                [Vr, S, Vz, ranks(n)] = BackwardEulerTimestep(Vr, S, Vz, dt, tvals(n), Rmat, Zmat, rvals, zvals, B, B, D, D, tolerance, f_inf);
             case '2'
-                [Vr, S, Vz, ranks(n)] = DIRK2Timestep(Vr, S, Vz, dt, tvals(n), R, Z, rvals, zvals, B, B, D, D, tolerance, f_inf);
+                [Vr, S, Vz, ranks(n)] = DIRK2Timestep(Vr, S, Vz, dt, tvals(n), Rmat, Zmat, rvals, zvals, B, B, D, D, tolerance, f_inf);
             case '3'
-                [Vr, S, Vz, ranks(n)] = DIRK3Timestep(Vr, S, Vz, dt, tvals(n), R, Z, rvals, zvals, B, B, D, D, tolerance, f_inf);
+                [Vr, S, Vz, ranks(n)] = DIRK3Timestep(Vr, S, Vz, dt, tvals(n), Rmat, Zmat, rvals, zvals, B, B, D, D, tolerance, f_inf);
 
         end
         f = Vr*S*(Vz');
-        % l1(n) = dr*dz*sum(sum(abs(rvals .* (f-f_inf))));
-        l1(n) = dr*dz*sum(sum(abs(rvals .* (f-f_inf))));
+        l1(n) = 2*pi*dr*dz*sum(sum(abs(Rmat .* (f-f_inf))));
         positivity(n) = min(min(f));
-        relative_entropy(n) = dr*dz*sum(sum(rvals .* (f.*(log(f./f_inf)))));
-        mass(n) = dr*dz*sum(sum(rvals .* f));
+        relative_entropy(n) = 2*pi*dr*dz*sum(sum(Rmat .* (f.*(log(f./f_inf)))));
+        mass(n) = 2*pi*dr*dz*sum(sum(Rmat .* f));
 
         if plotTimeSteps
-            figure(1); clf; surf(R, Z, f);
+            figure(1); clf; surf(Rmat, Zmat, f);
             legend(sprintf('N_r = %s', num2str(Nr, 3)), 'Location','northwest');
             colorbar;
             shading interp;
             xlabel('V_r'); ylabel('V_z'); zlabel('f(V_x, V_z)'); title([sprintf('Forward Euler approximation of 1D Fokker-Planck system at time %s', num2str(tf, 4))]);
         end
-        
+       
+        % if n==2
+        %     figure(1);clf;surf(Rmat, Zmat, f);shading interp;
+        % end
     end
     data = [l1, positivity, relative_entropy, mass, tvals, ranks];
 end

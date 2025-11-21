@@ -58,7 +58,7 @@ figure; clf;
 for tn = 2:numel(tvals)
     disp(['t = ', num2str(tvals(tn))])
     dt = tvals(tn) - tvals(tn-1);
-    [n, nu_para, nU, Te] = newton_solver_FP(f, n, u_para, U, Te, dt, dx, dv_para, dv_perp, v_para, v_perp, qa, qe, ma, me, R_const, x_min, x_max);
+    [n, nu_para, nU, Te] = newton_solver_FP_order_2(f, n, u_para, U, Te, dt, dx, dv_para, dv_perp, v_para, v_perp, qa, qe, ma, me, R_const, x_min, x_max);
 
     u_para = nu_para./n;
     U = nU./n;

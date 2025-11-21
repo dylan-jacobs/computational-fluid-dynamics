@@ -17,7 +17,7 @@ function [n, nu, nU, T_e] = newton_solver_FP(f, n0, u_para0, U0, T_e0, dt, dx, d
     T_ae_min = T_ae_boundary(x_ghost_left); T_ae_max = T_ae_boundary(x_ghost_right);
 
     n0_pos = [n0; n0_max]; n0_neg = [n0_min; n0];
-    u_para0_half_nodes = (u_para0(1:end-1) + u_para0(2:end))/2; u_para0_half_nodes = [u_para0_min; u_para0_half_nodes; u_para0_max];
+    u_para0_half_nodes = ([u_para0_min; u_para0] + [u_para0; u_para0_max])/2; %u_para0_half_nodes = [u_para0_min; u_para0_half_nodes; u_para0_max];
     Te0_pos = [T_e0(2:end); T_ae_max]; Te0_neg = [T_ae_min; T_e0(1:end-1)];
 
     % first, compute fluxes via summation

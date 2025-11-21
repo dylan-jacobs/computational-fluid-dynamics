@@ -8,7 +8,7 @@
 
 
 function [Vr, S, Vz, r1] = DIRK2Timestep(Vr0, S0, Vz0, dt, tval, R, Z, rvals, zvals, Br, Bz, Drr, Dzz, tolerance, f_inf)
-    r1 = 1;
+
     Fr1 = GetRadialFluxSPCC(tval, rvals, Br, Drr);
     Fz1 = GetZFluxSPCC(tval, zvals, Bz, Dzz);
 
@@ -16,11 +16,11 @@ function [Vr, S, Vz, r1] = DIRK2Timestep(Vr0, S0, Vz0, dt, tval, R, Z, rvals, zv
     Az = @(w) w.^0;
     Br = @(w, u, t) w.*(w - u);
     Bz = @(w, u, t) (w - u);
-    Cr = @(w, t) 3.*w;
-    Cz = @(w, t) 3;
+    Cr = @(w, t) Drr(w).*w;
+    Cz = @(w, t) Dzz(w);
 
-    Fr1 = getF(tval, 0, rvals, rvals(2)-rvals(1), Ar, Br, Cr, size(rvals, 1));
-    Fz1 = getF(tval, 0, zvals, zvals(2) - zvals(1), Az, Bz, Cz, size(rvals, 2));
+    Fr1 = getF(tval, 0, rvals, rvals(2)-rvals(1), Ar, Br, Cr, 100);
+    Fz1 = getF(tval, 0, zvals, zvals(2) - zvals(1), Az, Bz, Cz, 100);
 
     nu = 1-(sqrt(2)/2);
 
@@ -38,8 +38,8 @@ function [Vr, S, Vz, r1] = DIRK2Timestep(Vr0, S0, Vz0, dt, tval, R, Z, rvals, zv
     Fr2 = GetRadialFluxSPCC(tval + dt, rvals, Br, Drr);
     Fz2 = GetZFluxSPCC(tval + dt, zvals, Bz, Dzz);
 
-    Fr2 = getF(tval, 0, rvals, rvals(2) - rvals(1), Ar, Br, Cr, size(rvals, 1));
-    Fz2 = getF(tval, 0, zvals, zvals(2) - zvals(1), Az, Bz, Cz, size(rvals, 2));
+    Fr2 = getF(tval, 0, rvals, rvals(2)-rvals(1), Ar, Br, Cr, 100);
+    Fz1 = getF(tval, 0, zvals, zvals(2) - zvals(1), Az, Bz, Cz, 100);
    
     % K/L-Step
     K1 = sylvester(eye(size(Fr2)) - (nu*dt*Fr2), -nu*dt*(Fz2*Vz_star)'*Vz_star, W0*Vz_star);

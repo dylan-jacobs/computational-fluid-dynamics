@@ -18,6 +18,7 @@ function [u] = Finite_Differences_2D_Nonsplitting(discretizationType, Nx, Ny, la
 
     u = u0(X, Y);
     figure; surf(X, Y, u);
+    colorbar; shading flat;
     for n = 2:numel(tvals)
         t0 = tvals(n-1);
         dt = tvals(n) - tvals(n-1); % DO NOT FORGET TO INCLUDE THIS!!!!!
