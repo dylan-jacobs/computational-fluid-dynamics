@@ -5,11 +5,10 @@ soln = load('vdfp_refsoln_imex111.mat');
 soln = soln.f_master;
 
 DTvals = [0.4,0.2,0.1,0.05,0.025,0.0125,0.00625];
-DTvals = [0.4,0.2,0.1,0.05,0.025,0.0125];
 % DTvals = [0.4, 0.2, 0.1, 0.05];
 % DTvals = [0.4, 0.2, 0.1];
-% DTvals = [0.025];
-Nx = 80;
+DTvals = [0.025];
+Nx =  80;
 ERRORS = zeros(5 + Nx, numel(DTvals));
 
 for dtIndex = 1:numel(DTvals)
@@ -281,8 +280,8 @@ disp(log2(ERRORS(5, 1:end-1)./ERRORS(5, 2:end))');
 
 for j = 1:Nx
     fprintf('L1 (local, i=%d)\n', j);
-    disp(ERRORS(5 + j, :)');
-    disp(log2(ERRORS(5 + j, 1:end-1)./ERRORS(5 + j, 2:end))');
+    disp(ERRORS(4 + j, :)');
+    disp(log2(ERRORS(4 + j, 1:end-1)./ERRORS(4 + j, 2:end))');
 end
 
 
@@ -558,9 +557,9 @@ function [n, nu, nU, T_e, u_para0_half_nodes, nu_hat, S_hat, Q_hat, nTe_hat, kap
 
     kappa_pos = (3.2/(2*sqrt(2*me)))*((Te_pos.^(5/2) + T_e.^(5/2)));
     kappa_neg = (3.2/(2*sqrt(2*me)))*((T_e.^(5/2) + Te_neg.^(5/2))); 
-    % kappa_half_nodes = (kappa_pos(1:end-1) + kappa_neg(2:end))/2; kappa_half_nodes = [(3.2/(2*sqrt(2*me)))*((T_ae_min.^(5/2) + T_e(1).^(5/2))); kappa_half_nodes; (3.2/(2*sqrt(2*me)))*((T_ae_max.^(5/2) + T_e(end).^(5/2)));];
-    % kappa_pos = kappa_half_nodes(2:end);
-    % kappa_neg = kappa_half_nodes(1:end-1);
+    kappa_half_nodes = (kappa_pos(1:end-1) + kappa_neg(2:end))/2; kappa_half_nodes = [(3.2/(2*sqrt(2*me)))*((T_ae_min.^(5/2) + T_e(1).^(5/2))); kappa_half_nodes; (3.2/(2*sqrt(2*me)))*((T_ae_max.^(5/2) + T_e(end).^(5/2)));];
+    kappa_pos = kappa_half_nodes(2:end);
+    kappa_neg = kappa_half_nodes(1:end-1);
 
     R1 = nu - (n0.*u_para0) + (dt/dx).*(S_hat_pos - S_hat_neg) - ((dt*qa)/(2*dx*qe*ma)).*((n_pos.*Te_pos) - (n_neg.*Te_neg));
     R2 = nU - (n0.*U0) + (dt/dx).*(Q_hat_pos - Q_hat_neg) - (((dt*qa*nu)./(2*dx*qe*n)).*((n_pos.*Te_pos) - (n_neg.*Te_neg))) - (((dt.*3.*sqrt(2*me))./((ma.^2).*(T_e.^(3/2)))) .* (((n.^2).*T_e) - ((ma/3).*((2.*n.*nU) - (nu.^2)))));
@@ -603,9 +602,9 @@ function [n, nu, nU, T_e, u_para0_half_nodes, nu_hat, S_hat, Q_hat, nTe_hat, kap
 
         kappa_pos = (3.2/(2*sqrt(2*me)))*((Te_pos.^(5/2) + T_e.^(5/2)));
         kappa_neg = (3.2/(2*sqrt(2*me)))*((T_e.^(5/2) + Te_neg.^(5/2)));
-        % kappa_half_nodes = (kappa_pos(1:end-1) + kappa_neg(2:end))/2; kappa_half_nodes = [(3.2/(2*sqrt(2*me)))*((T_ae_min.^(5/2) + T_e(1).^(5/2))); kappa_half_nodes; (3.2/(2*sqrt(2*me)))*((T_ae_max.^(5/2) + T_e(end).^(5/2)))];
-        % kappa_pos = kappa_half_nodes(2:end);
-        % kappa_neg = kappa_half_nodes(1:end-1);
+        kappa_half_nodes = (kappa_pos(1:end-1) + kappa_neg(2:end))/2; kappa_half_nodes = [(3.2/(2*sqrt(2*me)))*((T_ae_min.^(5/2) + T_e(1).^(5/2))); kappa_half_nodes; (3.2/(2*sqrt(2*me)))*((T_ae_max.^(5/2) + T_e(end).^(5/2)))];
+        kappa_pos = kappa_half_nodes(2:end);
+        kappa_neg = kappa_half_nodes(1:end-1);
         
         R1 = nu - (n0.*u_para0) + (dt/dx).*(S_hat_pos - S_hat_neg) - ((dt*qa)/(2*dx*qe*ma)).*((n_pos.*Te_pos) - (n_neg.*Te_neg));
         R2 = nU - (n0.*U0) + (dt/dx).*(Q_hat_pos - Q_hat_neg) - (((dt*qa*nu)./(2*dx*qe*n)).*((n_pos.*Te_pos) - (n_neg.*Te_neg))) - (((dt.*3.*sqrt(2*me))./((ma.^2).*(T_e.^(3/2)))) .* (((n.^2).*T_e) - ((ma/3).*((2.*n.*nU) - (nu.^2)))));
