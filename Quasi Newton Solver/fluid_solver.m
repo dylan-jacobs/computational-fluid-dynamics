@@ -1,13 +1,13 @@
 % Tests the fluid solver for the FP plasma system
-clc; clear variables; close all;
+% clc; clear variables; close all;
 
 % Simulation parameters
-Nx = 400;
+Nx = 80;
 Vr = 50;
 Vz = 100;
 x_min = 0;
 x_max = 200;
-interval = [x_min, x_max, 0, 8, -8, 10]; % for standing shock
+interval = [x_min, x_max, 0, 8, -8, 8]; % for standing shock
 % interval = [x_min, x_max, 0, 12, -12, 12]; % for smooth IC % 1D in x, 2D in v (first: r interval, second: z interval)
 tf = 1;
 
@@ -32,7 +32,6 @@ end
 n = n(xvals);
 u_para = u_para(xvals);
 T_ae = T_ae(xvals); Ta = T_ae; Te = T_ae;
-U = 0.5*((3*Ta/ma) + (u_para.^2));
 
 f_ref = maxwellian(n, v_para, v_perp, u_para, T_ae, R_const);
 
@@ -51,13 +50,7 @@ Ta_vals_ref(1, :) = Ta;
 for tn = 2:numel(tvals_ref)
     disp(tvals_ref(tn));
     dt = tvals_ref(tn) - tvals_ref(tn-1);
-    [n, nu_para, nU, Te] = newton_solver_FP_order_2(f_ref, n, u_para, U, Te, dt, dx, dv_para, dv_perp, v_para, v_perp, qa, qe, ma, me, R_const, x_min, x_max);
-
-    u_para = nu_para./n;
-    U = nU./n;
-
-    % get T_a from macroscopic parameters
-    Ta = ((2*U) - (u_para.^2)).*ma/3;
+    [n, u_para, Ta, Te] = newton_solver_FP_order_2(f_ref, n, u_para, Ta, Te, dt, dx, dv_para, dv_perp, v_para, v_perp, qa, qe, ma, me, R_const, x_min, x_max);
    
     nvals_ref(tn, :) = n;
     uvals_ref(tn, :) = u_para;
@@ -71,8 +64,8 @@ end
 %%
 
 %%% RUN CONVERGENCE TEST %%%
-dtvals = [0.2, 0.1, 0.05, 0.025, 0.0125]; % first one is for reference
-errors = zeros(numel(dtvals), 5); % compute errors for f, n, u, Ta, Te
+dtvals = [0.2, 0.1, 0.05, 0.025];%, 0.0125];
+errors = zeros(numel(dtvals), 6); % compute errors for f, n, u, Ta, Te
 for i = 1:numel(dtvals)
 
 dt = dtvals(i)
@@ -87,18 +80,6 @@ end
 n = n(xvals);
 u_para = u_para(xvals);
 T_ae = T_ae(xvals); Ta = T_ae; Te = T_ae;
-U = 0.5*((3*Ta/ma) + (u_para.^2));
-
-% ---- plot ICs ----
-% figure; clf;
-% plot(xvals, n); hold on;
-% plot(xvals, u_para0./u_para0(1));
-% plot(xvals, T_ae);
-% legend('n', 'u/u0', 'T_e', 'T_\alpha')
-% title('tn=0');
-% xlabel('x');
-% drawnow;
-% pause(0.05);
 
 f = maxwellian(n, v_para, v_perp, u_para, T_ae, R_const);
 
@@ -118,13 +99,7 @@ Ta_vals(1, :) = Ta;
 for tn = 2:numel(tvals)
     disp(['t = ', num2str(tvals(tn))])
     dt = tvals(tn) - tvals(tn-1);
-    [n, nu_para, nU, Te] = newton_solver_FP_order_2(f, n, u_para, U, Te, dt, dx, dv_para, dv_perp, v_para, v_perp, qa, qe, ma, me, R_const, x_min, x_max);
-
-    u_para = nu_para./n;
-    U = nU./n;
-
-    % get T_a from macroscopic parameters
-    Ta = ((2*U) - (u_para.^2))*ma/3;
+    [n, u_para, Ta, Te] = newton_solver_FP(f, n, u_para, Ta, Te, dt, dx, dv_para, dv_perp, v_para, v_perp, qa, qe, ma, me, R_const, x_min, x_max);
    
     nvals(tn, :) = n;
     uvals(tn, :) = u_para;
@@ -134,20 +109,20 @@ for tn = 2:numel(tvals)
     % reconstruct f
     f = maxwellian(n, v_para, v_perp, u_para, Ta, R_const);
 
-    % plot_freq = 50;
-    % num_subplots = (tf / plot_freq) + 1;
-    % num_rows = ceil(sqrt(num_subplots));
-    % num_cols = ceil(num_subplots / num_rows);
-    % if mod(tvals(tn), plot_freq) < 0.25
-    %     subplot(num_rows, num_cols, floor(tvals(tn) / plot_freq)+1);
-    %     plot(xvals, nvals(tn, :), "LineWidth", 1.5); hold on;
-    %     plot(xvals, uvals(tn, :)./uvals(tn, 1), "LineWidth",1.5);
-    %     plot(xvals, Te_vals(tn, :), "LineWidth", 1.5);
-    %     plot(xvals, Ta_vals(tn, :), "LineWidth", 1.5);
-    %     title(['tn=', num2str(tvals(tn))]);
-    %     ylim([0, 1.5]);
-    %     pause(0.05);
-    % end
+    plot_freq = 50;
+    num_subplots = (tf / plot_freq) + 1;
+    num_rows = ceil(sqrt(num_subplots));
+    num_cols = ceil(num_subplots / num_rows);
+    if mod(tvals(tn), plot_freq) < 0.25
+        subplot(num_rows, num_cols, floor(tvals(tn) / plot_freq)+1);
+        plot(xvals, nvals(tn, :), "LineWidth", 1.5); hold on;
+        plot(xvals, uvals(tn, :)./uvals(tn, 1), "LineWidth",1.5);
+        plot(xvals, Te_vals(tn, :), "LineWidth", 1.5);
+        plot(xvals, Ta_vals(tn, :), "LineWidth", 1.5);
+        title(['tn=', num2str(tvals(tn))]);
+        ylim([0, 1.5]);
+        pause(0.05);
+    end
 
       
 end
@@ -155,21 +130,22 @@ end
 % legend('n', 'u/u0', 'T_e', 'T_\alpha')
 % nvals = 2*pi*dv_perp*dv_para*sum(sum(f .* v_perp, 1), 2);
 % nvals_ref = 2*pi*dv_perp*dv_para*sum(sum(f_ref .* v_perp, 1), 2);
-errors(i, 1) = dx*2*pi*dv_perp*dv_para*sum(sum(sum(abs(f - f_ref) .* v_perp)));
-errors(i, 2) = dx*sum(abs(nvals(end, :) - nvals_ref(end, :)));
-errors(i, 3) = dx*sum(abs(uvals(end, :) - uvals_ref(end, :)));
-errors(i, 4) = dx*sum(abs(Ta_vals(end, :) - Ta_vals_ref(end, :)));
-errors(i, 5) = dx*sum(abs(Te_vals(end, :) - Te_vals_ref(end, :)));
+errors(i, 1) = dx*2*pi*dv_perp*dv_para*sum(sum(sum(abs(f - f_ref) .* v_perp)))/(200*18*8);
+errors(i, 2) = dx*sum(abs(nvals(end, :) - nvals_ref(end, :)))/200;
+errors(i, 3) = dx*sum(abs(uvals(end, :) - uvals_ref(end, :)))/200;
+errors(i, 4) = dx*sum(abs(Ta_vals(end, :) - Ta_vals_ref(end, :)))/200;
+errors(i, 5) = dx*sum(abs(Te_vals(end, :) - Te_vals_ref(end, :)))/200;
+errors(i, 6) = max(max(max(abs(f - f_ref))));
 end
-
-% figure; clf;
-% plot(xvals, nvals(tn, :), "LineWidth", 1.5); hold on;
-% plot(xvals, uvals(tn, :)./uvals(tn, 1), "LineWidth",1.5);
-% plot(xvals, Te_vals(tn, :), "LineWidth", 1.5);
-% plot(xvals, Ta_vals(tn, :), "LineWidth", 1.5);
-% title(['tn=', num2str(tvals(tn))]);
-% ylim([0, 1.5]);
-% legend('n', 'u/u0', 'T_e', 'T_\alpha')
+%%
+figure; clf;
+plot(xvals, nvals(tn, :), "LineWidth", 1.5); hold on;
+plot(xvals, uvals(tn, :)./uvals(tn, 1), "LineWidth",1.5);
+plot(xvals, Te_vals(tn, :), "LineWidth", 1.5);
+plot(xvals, Ta_vals(tn, :), "LineWidth", 1.5);
+title(['tn=', num2str(tvals(tn))]);
+ylim([0, 1.5]);
+legend('n', 'u/u0', 'T_e', 'T_\alpha')
 
 % for i = 1:21
 %     idx = i*500;
@@ -187,17 +163,20 @@ end
 %%% CONVERGENCE %%%
 disp('Errors:');
 disp('L1 (global)');
-% disp(errors(1, :)');
+disp(errors(:, 1));
 disp(log2(errors(1:end-1, 1)./errors(2:end, 1)));
 disp('Mass');
-% disp(errors(2, :)');
+disp(errors(:, 2));
 disp(log2(errors(1:end-1, 2)./errors(2:end, 2)));
 disp('Momentum');
-% disp(errors(3, :)');
+disp(errors(:, 3));
 disp(log2(errors(1:end-1, 3)./errors(2:end, 3)));
 disp('Ion Temperature');
-% disp(errors(4, :)');
+disp(errors(:, 4));
 disp(log2(errors(1:end-1, 4)./errors(2:end, 4)));
 disp('Electron Temperature');
-% disp(errors(4, :)');
+disp(errors(:, 5));
 disp(log2(errors(1:end-1, 5)./errors(2:end, 5)));
+disp('Linf (global)');
+disp(errors(:, 6));
+disp(log2(errors(1:end-1, 6)./errors(2:end, 6)));
