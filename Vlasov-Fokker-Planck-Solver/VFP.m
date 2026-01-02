@@ -635,7 +635,7 @@ function [n1, u_para1, T_a1, T_e1, u_para0_half_nodes, nu_hat1, S_hat1, Q_hat1, 
     kappaTx = (3.2/(2*sqrt(2*me)*dx))*(Te_all(1:end-1).^(2.5)+Te_all(2:end).^(2.5)).*(Te_all(2:end)-Te_all(1:end-1));
 end
 
-function [n2, u_para2, T_a2, T_e2, u_para0_half_nodes, nu_hat2, S_hat2, Q_hat2, nTe_hat2, kappaTx] = fluid_solver_IMEX222(f_vals_low_rank, n0, u_para0, T_a0, T_e0, dt, dx, dv_para, dv_perp, v_para, v_perp, qa, qe, ma, me, R_const, x_min, x_max)
+function [n2, u_para2, T_a2, T_e2, u_para0_half_nodes, nu_hat2, S_hat2, Q_hat2, nTe_hat2, kappaTx] = fluid_solver_IMEX222(f_vals_low_rank, n0, u_para0, T_a0, T_e0, dt, dx, dv_perp, dv_para, v_perp, v_para, qa, qe, ma, me, R_const, x_min, x_max)
 
     gamma = 1 - (sqrt(2)/2);
     delta = 1 - (1/(2*gamma));
@@ -1054,6 +1054,19 @@ function [] = PlotF(f_vals_low_rank, Xmat, Rmat, Zmat2, Nz)
     xlabel('x');ylabel('v_{||}');view(2);colorbar;
     drawnow;
 end
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 function [Vr_nn,S_nn,Vz_nn,r_nn] = LoMaC_trun(Vr_hat,S_hat,Vz_hat,dr,dz,rvals,zvals,Rmat,Zmat,Nr,Nz,w1,w2,tol,c1,c2,c3,c,rhoM,JzM,kappaM)
