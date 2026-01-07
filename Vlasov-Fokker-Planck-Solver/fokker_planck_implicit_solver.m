@@ -4,7 +4,7 @@ clc; clear variables; close all;
 r0 = 10;
 % time-stepping method: 1=B.Euler, 2=DIRK2, 3=DIRK3
 method = '3';
-lambdavals = (0.2:0.1:6)';
+lambdavals = 1;%(0.2:0.1:6)';
 % lambdavals = [0.01]; % for reference soln
 soln = load('dfp_refsoln_dirk3.mat');
 f_exact = soln.f;
@@ -16,7 +16,7 @@ tolerance = 1e-8;
 vmin = 0; vmax = 14;
 zmin = -16; zmax = 16;
 Nr = 100; Nz = 100;
-tf = 1;
+tf = 25;
 
 [Rmat, Zmat, dr, dz] = GetRZ(vmin, vmax, zmin, zmax, Nr, Nz);
 rvals = Rmat(:, 1);
@@ -158,14 +158,17 @@ set(gca, 'FontSize', 12)
 % disp(errors(:, 3));
 % disp(log2(errors(1:end-1, 3)./errors(2:end, 3)));
 
-% figure(1); clf; surf(Rmat, Zmat, f);
-% colorbar; shading interp;
+figure(1); clf; surf(Rmat, Zmat, f);
+colorbar; shading interp;
 % legend(sprintf('N_r = %s', num2str(Nr, 3)), 'Location','northwest');
-% xlabel('V_r'); ylabel('V_z'); zlabel('U'); title([sprintf('Backward Euler approximation of 0D2V Fokker-Planck system at time %s', num2str(tf, 4))]);
-% 
-% figure(2); clf; surf(Rmat, Zmat, f_inf);
-% colorbar; shading interp;
-% xlabel('V_r'); ylabel('V_z'); zlabel('f(V_r, V_z, t)'); title([sprintf('f_{exact} at time t=%s', num2str(tf, 4))]);
+xlabel('V_r'); ylabel('V_z'); zlabel('U'); % title([sprintf('DIRK3 numerical solution at time %s', num2str(tf, 4))]);
+set(gca, 'FontSize', 12);
+
+
+figure(2); clf; surf(Rmat, Zmat, f_exact);
+colorbar; shading interp;
+xlabel('V_r'); ylabel('V_z'); zlabel('f(V_r, V_z, t)'); title([sprintf('f_{exact} at time t=%s', num2str(tf, 4))]);
+set(gca, 'FontSize', 12);
 
 %%
 % l1 decay
@@ -181,16 +184,18 @@ semilogy(tvals, relative_entropy(:, 2), 'LineWidth', 1.5);
 semilogy(tvals, relative_entropy(:, 3), 'LineWidth', 1.5);
 % xlabel('t'); ylabel('Relative entropy'); title('Relative entropy decay');
 hold off
-legend('L1 decay, Backward Euler', 'L1 decay, DIRK2', 'L1 decay, DIRK3', 'Relative entropy, Backward Euler', 'Relative entropy, DIRK2', 'Relative entropy, DIRK3');
+legend('L1 decay, Backward Euler', 'L1 decay, DIRK2', 'L1 decay, DIRK3', 'Relative entropy, Backward Euler', 'Relative entropy, DIRK2', 'Relative entropy, DIRK3', 'FontSize', 12);
 xlabel('Time')
 ylabel('Magnitude')
 % ylim([1e-15, 1e0]);
-title('L_1 drive to equilibrium solution and relative entropy decay');
+% title('L_1 drive to equilibrium solution and relative entropy decay');
+set(gca, 'FontSize', 12);
 
 %%
 % Positivity
 figure(4); clf; plot(tvals, min_vals, 'green-', 'LineWidth', 1.5);
 xlabel('t'); ylabel('min(f(V_r, V_z))'); title('Minimum values of numerical solution over time');
+set(gca, 'FontSize', 12);
 
 % Mass
 figure(6); clf; hold on;
@@ -200,8 +205,8 @@ figure(6); plot(tvals(2:end), abs(Jzvals(2:end)-Jzvals(1)), 'LineWidth', 1.5);
 xlabel('t'); ylabel('Absolute error (Uz)'); title('Absolute error of bulk velocity over time');
 figure(6);  plot(tvals(2:end), abs(E(2:end)-E(1))/E(1), 'LineWidth', 1.5);
 xlabel('t'); ylabel('Variation'); title('Mass, momentum, and energy conservation');
-legend('Relative mass error', 'Absolute momentum error', 'Relative energy error');
-
+legend('Relative mass error', 'Absolute momentum error', 'Relative energy error', 'FontSize', 12);
+set(gca, 'FontSize', 12);
 
 
 % Rank plot
@@ -210,7 +215,8 @@ plot(tvals, ranks(:, 1), 'LineWidth', 1.5); hold on;
 plot(tvals, ranks(:, 2), 'LineWidth', 1.5);
 plot(tvals, ranks(:, 3), 'LineWidth', 1.5);
 xlabel('time'); ylabel('rank'); title('Rank plot over time');
-legend('Backward Euler', 'DIRK2', 'DIRK3');
+legend('Backward Euler', 'DIRK2', 'DIRK3', 'FontSize', 12);
+set(gca, 'FontSize', 12);
 
 
 
