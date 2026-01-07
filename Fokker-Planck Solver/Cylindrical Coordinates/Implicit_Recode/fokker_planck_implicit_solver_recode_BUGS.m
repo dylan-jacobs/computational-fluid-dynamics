@@ -55,14 +55,14 @@ kappaM = pi*dr*dz*sum(sum((Rmat.^2+Zmat.^2).*f_inf.*Rmat));
 % JzM = Jz0;
 % kappaM = kappa0;
 
-lambdavals = 1;%(0.2:0.1:6)';
+lambdavals = (0.2:0.1:6)';
 errors = zeros(numel(lambdavals), 3);
 methods = ['1', '2'];
-for x = 1:1
+for x = 1:2
 method = methods(x);
 
 for k = 1:numel(lambdavals)
-dt = lambdavals(k)/((1/dr) + (1/dz));
+dt = lambdavals(k)/((1/dr) + (1/dz))
 tvals = (0:dt:tf)';
 if tvals(end) ~= tf
     tvals = [tvals; tf];
@@ -128,14 +128,14 @@ errors(k, x) = 2*pi*dr*dz*sum((sum(Rmat .* abs(f - f_inf)))); % L1 error
 end
 end
 
-% figure(8); clf;
-% loglog(lambdavals, errors(:, 1), 'b-', 'LineWidth', 1.5); hold on;
-% loglog(lambdavals, 5e-10*(lambdavals .^ 1), 'b--', 'LineWidth', 1.5);
-% loglog(lambdavals, errors(:, 2), 'r-', 'LineWidth', 1.5); hold on;
-% loglog(lambdavals, 5e-10*(lambdavals .^ 2), 'r--', 'LineWidth', 1.5);
-% xlabel('\lambda'); ylabel('Accuracy'); title('Accuracy plot');
-% legend('Backward Euler', '$\mathcal{O}(1)$', 'DIRK2','$\mathcal{O}(2)$', 'interpreter', 'latex');
-% return
+figure(8); clf;
+loglog(lambdavals, errors(:, 1), 'b-', 'LineWidth', 1.5); hold on;
+loglog(lambdavals, 5e-10*(lambdavals .^ 1), 'b--', 'LineWidth', 1.5);
+loglog(lambdavals, errors(:, 2), 'r-', 'LineWidth', 1.5); hold on;
+loglog(lambdavals, 5e-10*(lambdavals .^ 2), 'r--', 'LineWidth', 1.5);
+xlabel('\lambda'); ylabel('Accuracy'); title('Accuracy plot');
+legend('Backward Euler', '$\mathcal{O}(1)$', 'DIRK2','$\mathcal{O}(2)$', 'interpreter', 'latex');
+return
 
 figure(1); clf; surf(Rmat, Zmat, f);
 colorbar; shading interp;

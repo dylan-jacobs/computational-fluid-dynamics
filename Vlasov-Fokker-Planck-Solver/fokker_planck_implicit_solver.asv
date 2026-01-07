@@ -138,15 +138,15 @@ c_pink   = [0.8902 0.4667 0.7608];
 c_gray   = [0.4980 0.4980 0.4980];
 
 figure(8); clf;
-loglog(lambdavals, errors(:, 1), '-', 'Color', c_blue, 'LineWidth', 1.5); hold on;
-loglog(lambdavals, 9e-3*(lambdavals .^ 1), '--', 'Color', c_blue, 'LineWidth', 1.5);
-loglog(lambdavals, errors(:, 2), '-', 'Color', c_orange, 'LineWidth', 1.5); hold on;
-loglog(lambdavals, 2e-4*(lambdavals .^ 2), '--', 'Color', c_orange, 'LineWidth', 1.5);
-loglog(lambdavals, errors(:, 3), '-', 'Color', c_green,  'LineWidth', 1.5); hold on;
-loglog(lambdavals, 2.5e-5*(lambdavals .^ 3), '--', 'Color', c_green, 'LineWidth', 1.5);
-xlabel('\lambda'); ylabel('Error'); title('Accuracy plot');
-legend('Backward Euler', '$\mathcal{O}(1)$', 'DIRK2','$\mathcal{O}(2)$', 'DIRK3', '$\mathcal{O}(3)$', 'interpreter', 'latex', 'FontSize', 12);
-set(gca, 'FontSize', 12)
+loglog(lambdavals, errors(:, 1), 'b-', 'LineWidth', 1.5); hold on;
+loglog(lambdavals, 9e-3*(lambdavals .^ 1), 'b--', 'LineWidth', 1.5);
+loglog(lambdavals, errors(:, 2), 'r-', 'LineWidth', 1.5); hold on;
+loglog(lambdavals, 2e-4*(lambdavals .^ 2), 'r--', 'LineWidth', 1.5);
+loglog(lambdavals, errors(:, 3), 'g-', 'LineWidth', 1.5); hold on;
+loglog(lambdavals, 2.5e-5*(lambdavals .^ 3), 'g--', 'LineWidth', 1.5);
+xlabel('\lambda'); ylabel('Accuracy'); title('Accuracy plot');
+legend('Backward Euler', '$\mathcal{O}(1)$', 'DIRK2','$\mathcal{O}(2)$', 'DIRK3', '$\mathcal{O}(3)$', 'interpreter', 'latex');
+
 % disp('Errors:');
 % disp('Backward Euler');
 % disp(errors(:, 1));
