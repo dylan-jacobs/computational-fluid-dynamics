@@ -155,8 +155,8 @@ function [n2, u_para2, T_a2, T_e2] = newton_solver_FP_order_2(f, n0, u_para0, T_
     n2_pos = [n2(2:end); n_BC_right]; n2_neg = [n_BC_left; n2(1:end-1)];
 
      % ---- init y_vec, R_norm ----
-    % y = [n2.*u_para0; n2.*U0; T_e0];
-    y = [nu1; nU1; T_e1];
+    y = [n2.*u_para0; n2.*U0; T_e0];
+    % y = [nu1; nU1; T_e1];
 
     nu = y(1:Nx); 
     nU = y(Nx+1:2*Nx);
@@ -184,6 +184,8 @@ function [n2, u_para2, T_a2, T_e2] = newton_solver_FP_order_2(f, n0, u_para0, T_
             - (((dt2*u_para1)./(3*dx)).*(nTe1_pos - nTe1_neg)) - (((2*dt2)/(3*dx.^2)) .* ((kappa1_pos.*(Te1_pos - T_e1)) - (kappa1_neg.*(T_e1 - Te1_neg)))) - (((dt2.*2.*sqrt(2*me))./(ma.*(T_e1.^(3/2)))) .* (((ma/3).*((2*n1.*nU1) - (nu1.^2))) - ((n1.^2).*T_e1))) ...
             - (((dt1*(nu./n2))./(3*dx)).*(nTe_pos - nTe_neg)) - (((2*dt1)/(3*dx.^2)) .* ((kappa_pos.*(Te_pos - T_e)) - (kappa_neg.*(T_e - Te_neg)))) - (((dt1.*2.*sqrt(2*me))./(ma.*(T_e.^(3/2)))) .* (((ma/3).*((2*n2.*nU) - (nu.^2))) - ((n2.^2).*T_e)));
     R = [R1; R2; R3];
+
+    tol = min(5e-12, max(abs(R))*5e-10); % ensure we don't get worse!
 
     while max(abs(R)) > tol
 

@@ -1,5 +1,5 @@
 % Tests the fluid solver for the FP plasma system
-% clc; clear variables; close all;
+clc; clear variables; close all;
 
 % Simulation parameters
 Nx = 80;
@@ -99,7 +99,7 @@ Ta_vals(1, :) = Ta;
 for tn = 2:numel(tvals)
     disp(['t = ', num2str(tvals(tn))])
     dt = tvals(tn) - tvals(tn-1);
-    [n, u_para, Ta, Te] = newton_solver_FP(f, n, u_para, Ta, Te, dt, dx, dv_para, dv_perp, v_para, v_perp, qa, qe, ma, me, R_const, x_min, x_max);
+    [n, u_para, Ta, Te] = newton_solver_FP_order_2(f, n, u_para, Ta, Te, dt, dx, dv_para, dv_perp, v_para, v_perp, qa, qe, ma, me, R_const, x_min, x_max);
    
     nvals(tn, :) = n;
     uvals(tn, :) = u_para;
