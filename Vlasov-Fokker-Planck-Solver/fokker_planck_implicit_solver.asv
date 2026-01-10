@@ -4,7 +4,7 @@ clc; clear variables; close all;
 r0 = 10;
 % time-stepping method: 1=B.Euler, 2=DIRK2, 3=DIRK3
 method = '3';
-lambdavals = (0.2:0.1:6)';
+lambdavals = 1;%(0.2:0.1:6)';
 % lambdavals = [0.01]; % for reference soln
 soln = load('dfp_refsoln_dirk3.mat');
 f_exact = soln.f;
@@ -16,7 +16,7 @@ tolerance = 1e-6;
 vmin = 0; vmax = 14;
 zmin = -16; zmax = 16;
 Nr = 100; Nz = 100;
-tf = 1;
+tf = 25;
 
 [Rmat, Zmat, dr, dz] = GetRZ(vmin, vmax, zmin, zmax, Nr, Nz);
 rvals = Rmat(:, 1);
@@ -144,9 +144,9 @@ loglog(lambdavals, errors(:, 2), '-', 'Color', c_orange, 'LineWidth', 1.5); hold
 loglog(lambdavals, 2e-4*(lambdavals .^ 2), '--', 'Color', c_orange, 'LineWidth', 1.5);
 loglog(lambdavals, errors(:, 3), '-', 'Color', c_green,  'LineWidth', 1.5); hold on;
 loglog(lambdavals, 2.5e-5*(lambdavals .^ 3), '--', 'Color', c_green, 'LineWidth', 1.5);
-xlabel('\lambda'); ylabel('L_1 error'); title('Error plot');
-legend('Backward Euler', 'Order 1', 'DIRK2','Order 2', 'DIRK3', 'Order 3', 'interpreter', 'latex');
-% set(gca, 'FontSize', 12)
+xlabel('\lambda'); ylabel('Error'); title('Accuracy plot');
+legend('Backward Euler', '$\mathcal{O}(1)$', 'DIRK2','$\mathcal{O}(2)$', 'DIRK3', '$\mathcal{O}(3)$', 'interpreter', 'latex', 'FontSize', 12);
+set(gca, 'FontSize', 12)
 % disp('Errors:');
 % disp('Backward Euler');
 % disp(errors(:, 1));
@@ -194,7 +194,8 @@ set(gca, 'FontSize', 12);
 %%
 % Positivity
 figure(4); clf; plot(tvals, min_vals, 'green-', 'LineWidth', 1.5);
-xlabel('t'); ylabel('Minimum value'); title('Minimum values of numerical solution');
+xlabel('t'); ylabel('min(f(V_r, V_z))'); title('Minimum values of numerical solution over time');
+set(gca, 'FontSize', 12);
 
 % Mass
 figure(6); clf; hold on;
@@ -213,8 +214,9 @@ figure(9); clf; hold on;
 plot(tvals, ranks(:, 1), 'LineWidth', 1.5); hold on;
 plot(tvals, ranks(:, 2), 'LineWidth', 1.5);
 plot(tvals, ranks(:, 3), 'LineWidth', 1.5);
-xlabel('t'); ylabel('Rank'); title('Rank plot');
-legend('Backward Euler', 'DIRK2', 'DIRK3');
+xlabel('time'); ylabel('rank'); title('Rank plot over time');
+legend('Backward Euler', 'DIRK2', 'DIRK3', 'FontSize', 12);
+set(gca, 'FontSize', 12);
 
 
 
