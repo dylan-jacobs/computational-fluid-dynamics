@@ -1,19 +1,8 @@
 clc; close all; clear variables;
 
-% load reference solution 
-soln = load("vdfp_refsoln_IMEX222_Nx160_Nvperp200_Nvpar200_T1_tole-8_dt10-3.mat"); % Nx=160, Nv=Nz=200, Tf=1, tol=1e-8
-soln = soln.f_vals_low_rank;
-
-DTvals = [0.4,0.2,0.1,0.05,0.025,0.0125,0.00625];
-DTvals = [0.4, 0.2,0.1,0.05,0.025,0.0125];
-% DTvals = [0.4, 0.2, 0.1, 0.05];
-% DTvals = [0.8, 0.4, 0.2, 0.1];
-% DTvals = [0.5, 0.25, 0.125, 0.0625];
-% DTvals = [0.001]; % for reference
-% DTvals = [0.4];
-DTvals = 0.2:0.02:0.9;
-Nx = 160;
-ERRORS = zeros(6 + Nx, numel(DTvals));
+DTvals = [0.01];
+Nx = 120;
+ERRORS = zeros(6, numel(DTvals));
 
 for dtIndex = 1:numel(DTvals)
 dt = DTvals(dtIndex);
@@ -21,17 +10,8 @@ dt = DTvals(dtIndex);
 % initial rank
 r0 = 30;
 % time-stepping method: 1=B.Euler, 2=DIRK2
-method = '2';
-tolerance = 1e-8;
-
-% mesh parameters
-% Nx = 80;
-Nr = 0;
-Nz = 200;
-x_min = 0;
-x_max = 2*pi/beta;
-interval = [x_min, x_max, 0, 8, -8, 8]; % 1D in x, 2D in v (x interval, r interval, z interval)
-tf = 1;
+method = '1';
+tolerance = 1e-6;
 
 ma = 1; % ion mass
 me = 1/1836; % electron mass
@@ -39,50 +19,81 @@ qa = 1; % ion charge
 qe = -1; % electron charge
 R_const = 1; % gas constant
 
-[n_vals, u_para, Tae_vals] = get_boundaries(x_min, x_max); % electron and ion temps equal at t=0 and at boundaries --> T_ae = T_a = T_e
-n_IC = n_vals; u_IC = u_para; Te_IC = Tae_vals;
+% mesh parameters
+Nr = 120;
+Nz = 120;
+x_min = 0;
+x_max = 16;
+Lv = 6;
+interval = [x_min, x_max, 0, Lv, -Lv, Lv]; % 1D in x, 2D in v (x interval, r interval, z interval)
+tf = 16;
+
+% Meshes
 [xvals, Rmat, Zmat, dx, dr, dz] = GetRZ(Nx, Nr, Nz, interval);
-leftBC = maxwellian(n_vals(x_min - dx/2), Rmat, Zmat, u_para(x_min - dx/2), Tae_vals(x_min - dx/2), R_const);
-rightBC = maxwellian(n_vals(x_max + dx/2), Rmat, Zmat, u_para(x_max + dx/2), Tae_vals(x_max + dx/2), R_const);
+
+% IC
+% f0 = @(x)(1/((2*pi)^(3/2))).*(1+alpha*cos(beta*x))*exp(-(Rmat.^2 + Zmat.^2)/2);
 rvals = Rmat(:, 1);
 zvals = Zmat(1, :)';
 [Xmat, Zmat2] = meshgrid(xvals, zvals); Xmat=Xmat'; Zmat2=Zmat2'; % for plotting only
 
-% Moment ICs
-n_vals = n_vals(xvals);
+% initialize f and compute moments from f
+f_vals = zeros(Nr, Nz, Nx);
+n_vals = zeros(Nx, 1);
 u_perp = zeros(Nx, 1);
-u_para = u_para(xvals);
-Tae_vals = Tae_vals(xvals); Ta_vals = Tae_vals; Te_vals = Tae_vals;
-U = 0.5*((3*Ta_vals/ma) + (u_para.^2));
-
-% initialize f_inf using QCM at each spatial node
-f_vals = maxwellian(n_vals, Rmat, Zmat, u_para, Tae_vals, R_const);
-f_inf_vals = zeros(Nr, Nz, Nx);
-for spatialIndex = 1:Nx
-    % f0 = @(vr,vz) f_M(vr,vz,n1,u1r,u1z,T1,R_const) + f_M(vr,vz,n2,u2r,u2z,T2,R_const); % IC
-    % f = f0(Rmat,Zmat);
-    f0 = f_vals(:, :, spatialIndex);
+u_para = zeros(Nx, 1);
+Ta_vals = zeros(Nx, 1);
+Te_vals = zeros(Nx, 1);
+leftBC = []; rightBC = []; 
+n_left_BC = 0; n_right_BC = 0;
+u_left_BC = 0; u_right_BC = 0;
+Ta_left_BC = 0; Ta_right_BC = 0;
+Te_left_BC = 0; Te_right_BC = 0;
+for spatialIndex = 0:Nx+1
+    if spatialIndex == 0
+        x = x_min - dx/2;
+    elseif spatialIndex == Nx+1
+        x = x_max + dx/2;
+    else
+        x = xvals(spatialIndex);
+    end
     
-    % discrete moments of f0
-    rho0 = sum(sum(f0.*Rmat))*2*pi*dr*dz;
-    Jz0  = sum(sum(f0.*Rmat.*Zmat))*2*pi*dr*dz;
-    kappa0   = sum(sum(f0.*Rmat.*((Rmat.^2 + Zmat.^2)/2)))*2*pi*dr*dz;
-    
-    [f_inf, n_inf, uz_inf, T_inf] = QCM(rho0, Jz0, kappa0, R_const, Rmat, Zmat);
-    f_inf_vals(:, :, spatialIndex) = f_inf;
+    % n = 2*pi*dr*dz*sum(sum(f .* Rmat));
+    % u = 2*pi*dr*dz*sum(sum(Zmat .* f .* Rmat))./n;
+    % Ta = (2*pi*dr*dz*sum(sum((Rmat.^2 + Zmat.^2).*f.*Rmat)) - n*u^2)/(3*n/ma);
+    n = 1 + 0.01*sin(2*pi*x/(x_max - x_min));
+    u = 0;
+    Ta = 0.2;
+    Te = 1;
         
-    % moments at equilibrium
-    rhoM = rho0;
-    JzM = Jz0;
-    kappaM = kappa0;
-    
-    ur_inf = 0; % no drift in r
-    ur = ur_inf;
-    uz = uz_inf;
+    f = (n/((2*pi*R_const*Ta)^(3/2)))*exp(-((Zmat-u).^2 + Rmat.^2)/(2*R_const*Ta));
+
+    if spatialIndex == 0
+        leftBC = f;
+        n_left_BC = n;
+        u_left_BC = u;
+        Ta_left_BC = Ta;
+        Te_left_BC = Te;    
+    elseif spatialIndex == Nx+1
+        rightBC = f;
+        n_right_BC = n;
+        u_right_BC = u;
+        Ta_right_BC = Ta;
+        Te_right_BC = Te;
+    else
+        f_vals(:, :, spatialIndex) = f;
+        n_vals(spatialIndex) = n;
+        u_para(spatialIndex) = u;
+        Ta_vals(spatialIndex) = Ta;
+        Te_vals(spatialIndex) = Te;
+    end
 end
 
+U = 0.5*((3*Ta_vals/ma) + (u_para.^2));
+
+
+
 tvals = [0, 5e-3:dt:tf]';
-% tvals = [0:dt:tf]'; % for reference soln only
 if tvals(end) ~= tf
     tvals = [tvals; tf];
 end
@@ -134,7 +145,7 @@ for spatialIndex = 1:Nx
     f_vals_low_rank{spatialIndex, 3} = Vz;  
     spatial_rank_vals(spatialIndex, 1) = r0;
     spatial_min_vals(spatialIndex, 1) = min(min(f));
-    [~, E] = GetLorentz(dx, x_min, x_max, zvals, ma, qe, qa, n_vals, Te_vals, spatialIndex);
+    [~, E] = GetLorentz(dx, x_min, x_max, zvals, ma, qe, qa, n_vals, Te_vals, spatialIndex, n_left_BC, Ta_left_BC, n_right_BC, Ta_right_BC);
     spatial_Efield(spatialIndex, 1) = E;
 end
 
@@ -143,6 +154,7 @@ momentum(1) = dx*ma*sum(n_vals .* u_para);
 energy(1) = dx*ma*sum(0.5*((3/ma)*n_vals.*Ta_vals + n_vals.*u_para.^2) + (3/2)*n_vals.*Te_vals);
 min_vals(1) = min(spatial_min_vals);
 avg_ranks(1) = mean(spatial_rank_vals);
+Efield(1) = sqrt(dx*sum(abs(spatial_Efield) .^ 2));
 
 flux_diff_n = 0;
 flux_diff_nu = 0;
@@ -156,7 +168,20 @@ for t_index = 2:Nt
 
     switch(method)
         case '1'
-            [n_vals, u_para, Ta_vals, Te_vals, u_hat, nu_hat, S_hat, Q_hat, nTe_hat, kappaTx] = fluid_solver_IMEX111(f_vals_low_rank, n_vals, u_para, Ta_vals, Te_vals, dt, dx, dr, dz, Rmat, Zmat, qa, qe, ma, me, R_const, x_min, x_max);
+            % periodic BCs!
+            leftBC = f_vals_low_rank{Nx, 1}*f_vals_low_rank{Nx, 2}*f_vals_low_rank{Nx, 3}';
+            rightBC = f_vals_low_rank{1, 1}*f_vals_low_rank{1, 2}*f_vals_low_rank{1, 3}';
+            n_left_BC = n_vals(end); n_right_BC = n_vals(1);
+            u_left_BC = u_para(end); u_right_BC = u_para(1);
+            Ta_left_BC = Ta_vals(end); Ta_right_BC = Ta_vals(1);
+            Te_left_BC = Te_vals(end); Te_right_BC = Te_vals(1);
+            [n_vals, u_para, Ta_vals, Te_vals, u_hat, nu_hat, S_hat, Q_hat, nTe_hat, kappaTx] = fluid_solver_IMEX111(f_vals_low_rank, n_vals, u_para, Ta_vals, Te_vals, dt, dx, dr, dz, Rmat, Zmat, qa, qe, ma, me, R_const, x_min, x_max, leftBC, rightBC, n_left_BC, u_left_BC, Te_left_BC, n_right_BC, u_right_BC, Te_right_BC);
+            leftBC = f_vals_low_rank{Nx, 1}*f_vals_low_rank{Nx, 2}*f_vals_low_rank{Nx, 3}';
+            rightBC = f_vals_low_rank{1, 1}*f_vals_low_rank{1, 2}*f_vals_low_rank{1, 3}';
+            n_left_BC = n_vals(end); n_right_BC = n_vals(1);
+            u_left_BC = u_para(end); u_right_BC = u_para(1);
+            Ta_left_BC = Ta_vals(end); Ta_right_BC = Ta_vals(1);
+            Te_left_BC = Te_vals(end); Te_right_BC = Te_vals(1);
             nu = n_vals .* u_para;
             nU = 0.5*((3/ma)*n_vals.*Ta_vals + n_vals.*u_para.^2);
         
@@ -164,33 +189,52 @@ for t_index = 2:Nt
             f_vals_Vr = cell(Nx, 1);
             f_vals_S = cell(Nx, 1);
             f_vals_Vz = cell(Nx, 1);
-
-        
-            % if abs(tval - 1e-5) < dt || abs(tval - 200) < dt
-            %     figure(1); clf;
-            %     plot(xvals, n_vals, "LineWidth", 1.5); hold on;
-            %     plot(xvals, u_para./u_para(1), "LineWidth",1.5);
-            %     plot(xvals, Te_vals, "LineWidth", 1.5);
-            %     plot(xvals, Ta_vals, "LineWidth", 1.5);
-            %     legend('n', 'u_{||}', 'T_e', 'T_a');
-            %     title(sprintf('Mass, momentum, ion temperature, and electron temperature at t=%s', num2str(tval)));
-            %     ylim([0, 1.2]);
-            %     saveas(gcf, sprintf('Plots/moments_time_%s.m', num2str(round(tval))));
-            %     pause(0.05);
-            % end
         
             parfor spatialIndex = 1:Nx
-                Vr = f_vals_low_rank{spatialIndex, 1};
-                S = f_vals_low_rank{spatialIndex, 2};
-                Vz = f_vals_low_rank{spatialIndex, 3};
+                Vr0 = f_vals_low_rank{spatialIndex, 1};
+                S0 = f_vals_low_rank{spatialIndex, 2};
+                Vz0 = f_vals_low_rank{spatialIndex, 3};
         
                 rhoM = n_vals(spatialIndex);
                 JzM  = nu(spatialIndex);
                 kappaM = nU(spatialIndex);
-        
                 
-                [Vr, S, Vz, rank] = IMEX111(Vr, S, Vz, u_perp, u_para, dt, dx, tval, rvals, zvals, x_min, x_max, f_vals_low_rank, Rmat, Zmat, ma, me, qa, qe, Ar, Az, Br, Bz, Cr, Cz, tolerance, n_vals, Ta_vals, Te_vals, rhoM, JzM, kappaM, spatialIndex, R_const, leftBC, rightBC, wr, wz, c, w_norm_1_squared, w_norm_v_squared, w_norm_v2_squared);
                 
+                % [Vr, S, Vz, rank] = IMEX111(Vr, S, Vz, u_perp, u_para, dt, dx, tval, rvals, zvals, x_min, x_max, f_vals_low_rank, Rmat, Zmat, ma, me, qa, qe, Ar, Az, Br, Bz, Cr, Cz, tolerance, n_vals, Ta_vals, Te_vals, rhoM, JzM, kappaM, spatialIndex, R_const, leftBC, rightBC, wr, wz, c, w_norm_1_squared, w_norm_v_squared, w_norm_v2_squared);
+                
+                % discretize Fokker-Planck operators
+                nu_aa = n_vals(spatialIndex)/(Ta_vals(spatialIndex)^(3/2)); nu_aa = 0;
+                nu_ae = sqrt(2*me)*n_vals(spatialIndex)/(Te_vals(spatialIndex)^(3/2)); nu_ae = 0;
+                C_aa_r1 = nu_aa*GetFokkerPlanckFlux(Ar, Br, Cr, u_perp(spatialIndex), Ta_vals(spatialIndex), ma, rvals, tval, dr);
+                C_ae_r1 = nu_ae*GetFokkerPlanckFlux(Ar, Br, Cr, u_perp(spatialIndex), Te_vals(spatialIndex), ma, rvals, tval, dr);
+                C_aa_z1 = nu_aa*GetFokkerPlanckFlux(Az, Bz, Cz, u_para(spatialIndex), Ta_vals(spatialIndex), ma, zvals, tval, dz);
+                C_ae_z1 = nu_ae*GetFokkerPlanckFlux(Az, Bz, Cz, u_para(spatialIndex), Te_vals(spatialIndex), ma, zvals, tval, dz);
+                Cr1 = C_aa_r1 + C_ae_r1;
+                Cz1 = C_aa_z1 + C_ae_z1;
+            
+                % discretize Lorentz force
+                [Dz1, E] = GetLorentz(dx, x_min, x_max, zvals, ma, qe, qa, n_vals, Te_vals, spatialIndex, n_left_BC, Ta_left_BC, n_right_BC, Ta_right_BC);
+                spatial_Efield(spatialIndex) = E;
+
+                % discretize velocity explicitly
+                Dx1 = GetVlasov(dt, dx, Zmat, f_vals_low_rank, leftBC, rightBC, spatialIndex);
+                W0 = (Vr0*S0*Vz0') - Dx1;
+            
+                Vr0_star = Vr0;
+                Vz0_star = Vz0;
+            
+                K1 = sylvester(eye(Nr) - (dt*Cr1), dt*((Dz1 - Cz1)*Vz0_star)'*Vz0_star, W0*Vz0_star);
+                L1 = sylvester(eye(Nz) + dt*(Dz1 - Cz1), -dt*(Cr1*Vr0_star)'*(rvals.*Vr0_star), W0'*(rvals .* Vr0_star));
+                
+                [Vr1_ddagger, ~] = qr2(K1, rvals);
+                [Vz1_ddagger, ~] = qr(L1, 0);
+            
+                [Vr1_hat, Vz1_hat] = reduced_augmentation([Vr1_ddagger, Vr0], [Vz1_ddagger, Vz0], rvals);
+            
+                S1_hat = sylvester((eye(size(Vr1_hat, 2)) - (dt*((rvals .* Vr1_hat)')*(Cr1*Vr1_hat))), dt*((Dz1 - Cz1)*Vz1_hat)'*Vz1_hat, ((rvals .* Vr1_hat)'*W0*Vz1_hat));
+                [Vr, S, Vz, rank] = LoMaC(Vr1_hat, S1_hat, Vz1_hat, Rmat, Zmat, rvals, zvals, tolerance, rhoM, JzM, kappaM, wr, wz, c, w_norm_1_squared, w_norm_v_squared, w_norm_v2_squared);
+
+
                 % f_vals_low_rank_temp{spatialIndex, 1} = Vr;
                 % f_vals_low_rank_temp{spatialIndex, 2} = S;
                 % f_vals_low_rank_temp{spatialIndex, 3} = Vz;
@@ -212,7 +256,7 @@ for t_index = 2:Nt
 
             % update mass, momentum, energy (IMEX111)
             flux_diff_n = flux_diff_n + dt*(nu_hat(end) - nu_hat(1));
-            flux_diff_nu = flux_diff_nu + dt*((S_hat(end) - S_hat(1)) - (qa/(2*qe*ma))*(n_IC(x_max + dx/2)*Te_IC(x_max + dx/2) + n_vals(end)*Te_vals(end) - n_vals(1)*Te_vals(1) - n_IC(x_min - dx/2)*Te_IC(x_min - dx/2)));
+            flux_diff_nu = flux_diff_nu + dt*((S_hat(end) - S_hat(1)) - (qa/(2*qe*ma))*(n_right_BC*Te_right_BC + n_vals(end)*Te_vals(end) - n_vals(1)*Te_vals(1) - n_left_BC*Te_left_BC));
             flux_diff_nU = flux_diff_nU + dt*((Q_hat(end) - Q_hat(1)) + 2.5*(u_hat(end)*nTe_hat(end) - u_hat(1)*nTe_hat(1)) - (kappaTx(end) - kappaTx(1)));
             
                     
@@ -221,7 +265,20 @@ for t_index = 2:Nt
             delta = 1-(1/(2*gamma));
 
             %%% STAGE 1 %%%
-            [n_vals1, u_para1, Ta_vals1, Te_vals1, u_hat1, nu_hat1, S_hat1, Q_hat1, nTe_hat1, kappaTx1] = fluid_solver_IMEX111(f_vals_low_rank, n_vals, u_para, Ta_vals, Te_vals, gamma*dt, dx, dr, dz, Rmat, Zmat, qa, qe, ma, me, R_const, x_min, x_max);
+            % periodic BCs!
+            leftBC = f_vals_low_rank{Nx, 1}*f_vals_low_rank{Nx, 2}*f_vals_low_rank{Nx, 3}';
+            rightBC = f_vals_low_rank{1, 1}*f_vals_low_rank{1, 2}*f_vals_low_rank{1, 3}';
+            n_left_BC = n_vals(end); n_right_BC = n_vals(1);
+            u_left_BC = u_para(end); u_right_BC = u_para(1);
+            Ta_left_BC = Ta_vals(end); Ta_right_BC = Ta_vals(1);
+            Te_left_BC = Te_vals(end); Te_right_BC = Te_vals(1);
+            [n_vals1, u_para1, Ta_vals1, Te_vals1, u_hat1, nu_hat1, S_hat1, Q_hat1, nTe_hat1, kappaTx1] = fluid_solver_IMEX111(f_vals_low_rank, n_vals, u_para, Ta_vals, Te_vals, gamma*dt, dx, dr, dz, Rmat, Zmat, qa, qe, ma, me, R_const, x_min, x_max, leftBC, rightBC, n_left_BC, u_left_BC, Te_left_BC, n_right_BC, u_right_BC, Te_right_BC);
+            leftBC = f_vals_low_rank{Nx, 1}*f_vals_low_rank{Nx, 2}*f_vals_low_rank{Nx, 3}';
+            rightBC = f_vals_low_rank{1, 1}*f_vals_low_rank{1, 2}*f_vals_low_rank{1, 3}';
+            n_left_BC = n_vals1(end); n_right_BC = n_vals1(1);
+            u_left_BC = u_para1(end); u_right_BC = u_para1(1);
+            Ta_left_BC = Ta_vals1(end); Ta_right_BC = Ta_vals1(1);
+            Te_left_BC = Te_vals1(end); Te_right_BC = Te_vals1(1);
             nu1 = n_vals1 .* u_para1;
             nU1 = 0.5*((3/ma)*n_vals1.*Ta_vals1 + n_vals1.*u_para1.^2);
         
@@ -238,11 +295,6 @@ for t_index = 2:Nt
                 rhoM1 = n_vals1(spatialIndex);
                 JzM1  = nu1(spatialIndex);
                 kappaM1 = nU1(spatialIndex);
-        
-                dr = rvals(2) - rvals(1);
-                dz = zvals(2) - zvals(1);
-                Nr = numel(rvals);
-                Nz = numel(zvals);
             
                 % discretize Fokker-Planck operators
                 nu_aa1 = n_vals1(spatialIndex)/(Ta_vals1(spatialIndex)^(3/2));
@@ -255,7 +307,7 @@ for t_index = 2:Nt
                 Cz1 = C_aa_z1 + C_ae_z1;
             
                 % discretize Lorentz force
-                [Dz1, ~] = GetLorentz(dx, x_min, x_max, zvals, ma, qe, qa, n_vals1, Te_vals1, spatialIndex);
+                [Dz1, ~] = GetLorentz(dx, x_min, x_max, zvals, ma, qe, qa, n_vals1, Te_vals1, spatialIndex, n_left_BC, Ta_left_BC, n_right_BC, Ta_right_BC);
             
                 % discretize velocity explicitly
                 Dx1 = GetVlasov(gamma*dt, dx, Zmat, f_vals_low_rank, leftBC, rightBC, spatialIndex);
@@ -288,7 +340,7 @@ for t_index = 2:Nt
             f_vals_low_rank_temp = [f_vals_Vr, f_vals_S, f_vals_Vz];
 
             %%% STAGE 2 %%%
-            [n_vals2, u_para2, Ta_vals2, Te_vals2, u_hat2, nu_hat2, S_hat2, Q_hat2, nTe_hat2, kappaTx2] = fluid_solver_IMEX222_stage2(f_vals_low_rank_temp, n_vals, u_para, Ta_vals, Te_vals, n_vals1, u_para1, Ta_vals1, Te_vals1, nu_hat1, S_hat1, Q_hat1, nTe_hat1, dt, dx, dr, dz, Rmat, Zmat, qa, qe, ma, me, R_const, x_min, x_max);
+            [n_vals2, u_para2, Ta_vals2, Te_vals2, u_hat2, nu_hat2, S_hat2, Q_hat2, nTe_hat2, kappaTx2] = fluid_solver_IMEX222_stage2(f_vals_low_rank_temp, n_vals, u_para, Ta_vals, Te_vals, n_vals1, u_para1, Ta_vals1, Te_vals1, nu_hat1, S_hat1, Q_hat1, nTe_hat1, dt, dx, dr, dz, Rmat, Zmat, qa, qe, ma, me, R_const, x_min, x_max, leftBC, rightBC, n_left_BC, u_left_BC, Ta_left_BC, n_right_BC, u_right_BC, Ta_right_BC);
             nu2 = n_vals2 .* u_para2;
             nU2 = 0.5*((3/ma)*n_vals2.*Ta_vals2 + n_vals2.*u_para2.^2);
 
@@ -342,8 +394,8 @@ for t_index = 2:Nt
                 Cz2 = C_aa_z2 + C_ae_z2;
             
                 % discretize Lorentz force
-                [Dz1, ~] = GetLorentz(dx, x_min, x_max, zvals, ma, qe, qa, n_vals1, Te_vals1, spatialIndex);
-                [Dz2, E] = GetLorentz(dx, x_min, x_max, zvals, ma, qe, qa, n_vals2, Te_vals2, spatialIndex);
+                [Dz1, ~] = GetLorentz(dx, x_min, x_max, zvals, ma, qe, qa, n_vals1, Te_vals1, spatialIndex, n_left_BC, Ta_left_BC, n_right_BC, Ta_right_BC);
+                [Dz2, E] = GetLorentz(dx, x_min, x_max, zvals, ma, qe, qa, n_vals2, Te_vals2, spatialIndex, n_left_BC, Ta_left_BC, n_right_BC, Ta_right_BC);
                 spatial_Efield(spatialIndex) = E;
             
                 % discretize velocity explicitly
@@ -405,9 +457,9 @@ for t_index = 2:Nt
                 + dt*(1-delta)*(nu_hat2(end) - nu_hat2(1));
             flux_diff_nu = flux_diff_nu...
                 + dt*(delta)*((S_hat1(end) - S_hat1(1)))...
-                - dt*(1-gamma)*(qa/(2*qe*ma))*(n_IC(x_max + dx/2)*Te_IC(x_max + dx/2) + n_vals1(end)*Te_vals1(end) - n_vals1(1)*Te_vals1(1) - n_IC(x_min - dx/2)*Te_IC(x_min - dx/2))...
+                - dt*(1-gamma)*(qa/(2*qe*ma))*(n_right_BC*Te_right_BC + n_vals1(end)*Te_vals1(end) - n_vals1(1)*Te_vals1(1) - n_left_BC*Te_left_BC)...
                 + dt*(1-delta)*((S_hat2(end) - S_hat2(1)))...
-                - dt*(gamma)*(qa/(2*qe*ma))*(n_IC(x_max + dx/2)*Te_IC(x_max + dx/2) + n_vals2(end)*Te_vals(end) - n_vals2(1)*Te_vals2(1) - n_IC(x_min - dx/2)*Te_IC(x_min - dx/2));
+                - dt*(gamma)*(qa/(2*qe*ma))*(n_right_BC*Te_right_BC + n_vals2(end)*Te_vals(end) - n_vals2(1)*Te_vals2(1) - n_left_BC*Te_left_BC);
             flux_diff_nU = flux_diff_nU ...
                 + dt*(delta)*(Q_hat1(end) - Q_hat1(1))...
                 + dt*(delta)*2.5*(u_hat1(end)*nTe_hat1(end) - u_hat1(1)*nTe_hat1(1))...
@@ -433,138 +485,42 @@ for t_index = 2:Nt
     Ta_vals = Ta_vals_diff;
 end
 
-% save ref soln if running it
-% save('vdfp_refsoln_IMEX222_Nx160_Nvperp200_Nvpar200_T1_tole-8_dt10-3.mat','f_vals_low_rank');
-% return
-
-% Compute errors
-error = zeros(Nx, 1);
-soln_n = zeros(Nx, 1);
-soln_u = zeros(Nx, 1);
-soln_Ta = zeros(Nx, 1);
-linf_error = 0;
-
-for i = 1:Nx
-    f = f_vals_low_rank{i, 1}*f_vals_low_rank{i, 2}*f_vals_low_rank{i, 3}';
-    f_exact = soln{i, 1}*soln{i, 2}*soln{i, 3}';
-    error(i) = 2*pi*dr*dz*sum(sum(abs(f - f_exact) .* Rmat));
-    linf_error = max(linf_error, max(max(abs(f - f_exact))));
-
-    soln_n(i) = 2*pi*dr*dz*sum(sum(f_exact.*Rmat));
-    soln_u(i) = (1/soln_n(i))*2*pi*dr*dz*sum(sum(Zmat.*f_exact.*Rmat));
-    soln_Ta(i) = (2*pi*dr*dz*sum(sum((Rmat.^2 + Zmat.^2).*f_exact.*Rmat)) - soln_n(i)*soln_u(i)^2)/(3*soln_n(i)/ma);
-end
-ERRORS(1, dtIndex) = dx*sum(error)/(200*16*8);
-ERRORS(2, dtIndex) = dx*sum(abs(n_vals - soln_n))/200;
-ERRORS(3, dtIndex) = dx*sum(abs(u_para - soln_u))/200;
-ERRORS(4, dtIndex) = dx*sum(abs(Ta_vals - soln_Ta))/200;
-ERRORS(5, dtIndex) = linf_error;
-% ERRORS(6, dtIndex) = dx*sum(error(51:80));
-
-% accuracy at individual points
-% for j = 1:Nx
-%     ERRORS(6 + j, dtIndex) = 2*pi*dr*dz*sum(sum(abs(f_vals_low_rank{j, 1}*f_vals_low_rank{j, 2}*f_vals_low_rank{j, 3}' - soln{j, 1}*soln{j, 2}*soln{j, 3}')));
-% end
 end
 
-%% Error plot
-c_blue   = [0.1216 0.4667 0.7059];
-c_orange = [1.0000 0.4980 0.0549];
-c_green  = [0.1725 0.6275 0.1725];
-c_red    = [0.8392 0.1529 0.1569];
-c_purple = [0.5804 0.4039 0.7412];
-c_brown  = [0.5490 0.3373 0.2941];
-c_pink   = [0.8902 0.4667 0.7608];
-c_gray   = [0.4980 0.4980 0.4980];
-DTvals = 0.2:0.02:0.9;
 
-figure; clf;
-loglog(DTvals, ERRORS2(1, :), '-', 'Color', c_blue, 'LineWidth', 1.5); hold on; % L1
-% loglog(DTvals, ERRORS(5, :), '-', 'Color', c_purple,  'LineWidth', 1.5); hold on; % Linf
-% loglog(DTvals, 9e-3*(DTvals .^ 1), '--', 'Color', c_blue, 'LineWidth', 1.5); 
-loglog(DTvals, ERRORS2(2, :), '-', 'Color', c_orange, 'LineWidth', 1.5); hold on; % nvals
-loglog(DTvals, ERRORS2(3, :), '-', 'Color', c_green,  'LineWidth', 1.5); hold on; % uvals
-loglog(DTvals, ERRORS2(4, :), '-', 'Color', c_red,  'LineWidth', 1.5); hold on; % Tvals
-loglog(DTvals, 2e-4*(DTvals .^ 2), '--', 'Color', c_gray, 'LineWidth', 1.5);
 
-% loglog(DTvals, 2.5e-5*(DTvals .^ 3), '--', 'Color', c_green, 'LineWidth', 1.5);
-xlabel('dt'); ylabel('L_1 error'); title('Error plot');
-legend('L_1', 'L_1 (n)', 'L_1 (u)', 'L_1 (T_a)', 'Order 2'); 
 
+
+% figure(1); clf;
+% plot(xvals, n_vals, "LineWidth", 1.5); hold on;
+% plot(xvals, u_para./u_para(1), "LineWidth",1.5);
+% plot(xvals, Te_vals, "LineWidth", 1.5);
+% plot(xvals, Ta_vals, "LineWidth", 1.5);
+% legend('n', 'nu_{||}', 'T_e', 'T_a');
+% title(sprintf('Mass, momentum, ion temperature, and electron temperature at t=%s', num2str(tval)));
+% ylim([0, 1.2]);
+% pause(0.05);
+% 
+% figure(4); clf; plot(tvals, abs(mass-mass(1))/mass(1), 'k-', 'LineWidth', 1.5);
+% xlabel('t'); ylabel('Relative error (mass)'); title('Relative mass of numerical solution over time');
+% 
+% figure(5); clf; plot(tvals, abs(momentum-momentum(1)), 'k-', 'LineWidth', 1.5);
+% xlabel('t'); ylabel('Absolute error (Uz)'); title('Absolute error of bulk velocity over time');
+% 
+% figure(6); clf; plot(tvals, abs(energy-energy(1))/energy(1), 'k-', 'LineWidth', 1.5);
+% xlabel('t'); ylabel('Relative error (Energy)'); title('Relative energy of numerical solution over time');
 
 %%
-
-figure(1); clf;
-plot(xvals, n_vals, "LineWidth", 1.5); hold on;
-plot(xvals, u_para./u_para(1), "LineWidth",1.5);
-plot(xvals, Te_vals, "LineWidth", 1.5);
-plot(xvals, Ta_vals, "LineWidth", 1.5);
-legend('n', 'nu_{||}', 'T_e', 'T_a');
-title(sprintf('Mass, momentum, ion temperature, and electron temperature at t=%s', num2str(tval)));
-ylim([0, 1.2]);
-pause(0.05);
-
-figure(4); clf; plot(tvals, abs(mass-mass(1))/mass(1), 'k-', 'LineWidth', 1.5);
-xlabel('t'); ylabel('Relative error (mass)'); title('Relative mass of numerical solution over time');
-
-figure(5); clf; plot(tvals, abs(momentum-momentum(1)), 'k-', 'LineWidth', 1.5);
-xlabel('t'); ylabel('Absolute error (Uz)'); title('Absolute error of bulk velocity over time');
-
-figure(6); clf; plot(tvals, abs(energy-energy(1))/energy(1), 'k-', 'LineWidth', 1.5);
-xlabel('t'); ylabel('Relative error (Energy)'); title('Relative energy of numerical solution over time');
-
+% Electric field
+figure; clf;
+semilogy(tvals, Efield, 'LineWidth', 1.5);
+xlabel('t'); ylabel('E_2'); title('L_2 norm of Electric Field over Time');
 
 PlotF(f_vals_low_rank, Xmat, Rmat, Zmat2, Nz, 10);
 title(sprintf('Numerical solution at time t=%s', num2str(tf)));
 
-PlotF(soln, Xmat, Rmat, Zmat2, Nz, 11);
-title(sprintf('Exact solution at time t=%s', num2str(tf)));
-
-%% Errors
-disp('Errors:');
-disp('L1 (global)');
-disp(ERRORS(1, :)');
-disp(log2(ERRORS(1, 1:end-1)./ERRORS(1, 2:end))');
-disp('L_{inf} (global)');
-disp(ERRORS(5, :)');
-disp(log2(ERRORS(5, 1:end-1)./ERRORS(5, 2:end))');
-disp('Mass');
-disp(ERRORS(2, :)');
-disp(log2(ERRORS(2, 1:end-1)./ERRORS(2, 2:end))');
-disp('Momentum');
-disp(ERRORS(3, :)');
-disp(log2(ERRORS(3, 1:end-1)./ERRORS(3, 2:end))');
-disp('Energy');
-disp(ERRORS(4, :)');
-disp(log2(ERRORS(4, 1:end-1)./ERRORS(4, 2:end))');
-% disp('L1 (nodes 51 through 80)');
-% disp(ERRORS(6, :)');
-% disp(log2(ERRORS(6, 1:end-1)./ERRORS(6, 2:end))');
-
-
-% for j = 1:Nx
-%     fprintf('L1 (local, i=%d)\n', j);
-%     disp(ERRORS(6 + j, :)');
-%     disp(log2(ERRORS(6 + j, 1:end-1)./ERRORS(6 + j, 2:end))');
-% end
-
-
-% figure(1); clf; surf(Rmat, Zmat, f);
-% colorbar; shading interp;
-% legend(sprintf('N_r = %s', num2str(Nr, 3)), 'Location','northwest');
-% xlabel('V_r'); ylabel('V_z'); zlabel('U'); title([sprintf('Backward Euler approximation of 0D2V Fokker-Planck system at time %s', num2str(tf, 4))]);
-% 
-% figure(2); clf; surf(Rmat, Zmat, f_inf);
-% colorbar; shading interp;
-% xlabel('V_r'); ylabel('V_z'); zlabel('f(V_r, V_z, t)'); title([sprintf('f_{exact} at time t=%s', num2str(tf, 4))]);
-% 
-% l1 decay
-% figure(3); clf; semilogy(tvals, l1, 'black-', 'LineWidth', 1.5);
-% xlabel('t'); ylabel('L_1(f(V_r, V_z))'); title('L_1 decay of numerical solution over time');
-
-% Temporal errors!
 return
-%%
+%% 
 % Mass
 figure(4); clf; hold on;
 
@@ -581,19 +537,13 @@ legend('Mass deviation', 'Momentum deviation', 'Energy deviation');
 title('Mass, momentum, and energy conservation');
 ylabel('Deviation');
 
-% Rank plot
-figure(7); clf;
-plot(tvals, avg_ranks_total(:, 1), 'black-', 'LineWidth', 1.5); hold on;
-plot(tvals, avg_ranks_total(:, 2), 'blue-', 'LineWidth', 1.5);
-% plot(ranks3(:, 1), ranks3(:, 2), 'green-', 'LineWidth', 1.5);
-xlabel('time'); ylabel('rank'); title('Average rank plot');
-legend('Backward Euler', 'IMEX222');
-return;
-
-%%
-% Positivity
-figure(4); clf; plot(tvals, min_vals, 'green-', 'LineWidth', 1.5);
-xlabel('t'); ylabel('min(f(V_r, V_z))'); title('Minimum values of numerical solution over time');
+% % Rank plot
+% figure(7); clf;
+% plot(tvals, avg_ranks_total(:, 1), 'black-', 'LineWidth', 1.5); hold on;
+% plot(tvals, avg_ranks_total(:, 2), 'blue-', 'LineWidth', 1.5);
+% % plot(ranks3(:, 1), ranks3(:, 2), 'green-', 'LineWidth', 1.5);
+% xlabel('time'); ylabel('rank'); title('Average rank plot');
+% legend('Backward Euler', 'IMEX222');
 
 % Electric field
 figure; clf;
@@ -630,17 +580,12 @@ function [Dx] = GetVlasov(dt, dx, Zmat, f_vals_low_rank, leftBC, rightBC, i)
     Dx = (dt/dx)*max(Zmat, 0).*(f_i - f_i_neg) + (dt/dx)*min(Zmat, 0).*(f_i_pos - f_i);
 end
 
-function [Lorentz, E] = GetLorentz(dx, x_min, x_max, zvals, ma, qe, qa, ne_vals, Te_vals, i)
+function [Lorentz, E] = GetLorentz(dx, x_min, x_max, zvals, ma, qe, qa, ne_vals, Te_vals, i, n_leftBC, Te_leftBC, n_rightBC, Te_rightBC)
     Nx = numel(ne_vals);
     Nz = numel(zvals);
     dz = zvals(2) - zvals(1);
 
     % first compute E_para using Generalized Ohm's Law
-    [n0, ~, Te0] = get_boundaries(x_min, x_max);
-    n_leftBC = n0(x_min - dx/2);
-    n_rightBC = n0(x_max + dx/2);
-    Te_leftBC = Te0(x_min - dx/2);
-    Te_rightBC = Te0(x_max + dx/2);
     if i == 1
         E = (1/(2*dx*ne_vals(i)*qe))*(ne_vals(i+1)*Te_vals(i+1) - n_leftBC*Te_leftBC); % centered difference
     elseif i == Nx
@@ -672,44 +617,6 @@ function [Flux] = GetFokkerPlanckFlux(A, B, C, u, T, m, xvals, t, dx)
     F_neg = spdiags([0; F2], 0, N, N) + spdiags(F1, -1, N, N);
 
     Flux = diag(1./A)*(1/dx)*(F_pos - F_neg);
-end
-
-function [Vr, S, Vz, rank] = IMEX111(Vr0, S0, Vz0, ur, uz, dt, dx, tval, rvals, zvals, x_min, x_max, f_vals_low_rank, Rmat, Zmat, ma, me, qa, qe, Ar, Az, Br, Bz, Cr, Cz, tolerance, n_vals, Ta_vals, Te_vals, rhoM, JzM, kappaM, spatialIndex, R_const, leftBC, rightBC, wr, wz, c, w_norm_1_squared, w_norm_v_squared, w_norm_v2_squared)
-    dr = rvals(2) - rvals(1);
-    dz = zvals(2) - zvals(1);
-    Nr = numel(rvals);
-    Nz = numel(zvals);
-
-    % discretize Fokker-Planck operators
-    nu_aa = n_vals(spatialIndex)/(Ta_vals(spatialIndex)^(3/2));
-    nu_ae = sqrt(2*me)*n_vals(spatialIndex)/(Te_vals(spatialIndex)^(3/2));
-    C_aa_r1 = nu_aa*GetFokkerPlanckFlux(Ar, Br, Cr, ur(spatialIndex), Ta_vals(spatialIndex), ma, rvals, tval, dr);
-    C_ae_r1 = nu_ae*GetFokkerPlanckFlux(Ar, Br, Cr, ur(spatialIndex), Te_vals(spatialIndex), ma, rvals, tval, dr);
-    C_aa_z1 = nu_aa*GetFokkerPlanckFlux(Az, Bz, Cz, uz(spatialIndex), Ta_vals(spatialIndex), ma, zvals, tval, dz);
-    C_ae_z1 = nu_ae*GetFokkerPlanckFlux(Az, Bz, Cz, uz(spatialIndex), Te_vals(spatialIndex), ma, zvals, tval, dz);
-    Cr1 = C_aa_r1 + C_ae_r1;
-    Cz1 = C_aa_z1 + C_ae_z1;
-
-    % discretize Lorentz force
-    [Dz1, ~] = GetLorentz(dx, x_min, x_max, zvals, ma, qe, qa, n_vals, Te_vals, spatialIndex);
-
-    % discretize velocity explicitly
-    Dx1 = GetVlasov(dt, dx, Zmat, f_vals_low_rank, leftBC, rightBC, spatialIndex);
-    W0 = (Vr0*S0*Vz0') - Dx1;
-
-    Vr0_star = Vr0;
-    Vz0_star = Vz0;
-
-    K1 = sylvester(eye(Nr) - (dt*Cr1), dt*((Dz1 - Cz1)*Vz0_star)'*Vz0_star, W0*Vz0_star);
-    L1 = sylvester(eye(Nz) + dt*(Dz1 - Cz1), -dt*(Cr1*Vr0_star)'*(rvals.*Vr0_star), W0'*(rvals .* Vr0_star));
-    
-    [Vr1_ddagger, ~] = qr2(K1, rvals);
-    [Vz1_ddagger, ~] = qr(L1, 0);
-
-    [Vr1_hat, Vz1_hat] = reduced_augmentation([Vr1_ddagger, Vr0], [Vz1_ddagger, Vz0], rvals);
-
-    S1_hat = sylvester((eye(size(Vr1_hat, 2)) - (dt*((rvals .* Vr1_hat)')*(Cr1*Vr1_hat))), dt*((Dz1 - Cz1)*Vz1_hat)'*Vz1_hat, ((rvals .* Vr1_hat)'*W0*Vz1_hat));
-    [Vr, S, Vz, rank] = LoMaC(Vr1_hat, S1_hat, Vz1_hat, Rmat, Zmat, rvals, zvals, tolerance, rhoM, JzM, kappaM, wr, wz, c, w_norm_1_squared, w_norm_v_squared, w_norm_v2_squared);
 end
 
 function [Vr, Vz] = reduced_augmentation(Vr_aug, Vz_aug, rvals)
@@ -753,16 +660,16 @@ end
 
 
 % ------- FLUID SOLVER STUFF ------- %
-function [n1, u_para1, T_a1, T_e1, u_para0_half_nodes, nu_hat1, S_hat1, Q_hat1, nTe_hat1, kappaTx] = fluid_solver_IMEX111(f_vals_low_rank, n0, u_para0, T_a0, T_e0, dt, dx, dv_perp, dv_para, v_perp, v_para, qa, qe, ma, me, R_const, x_min, x_max)
+function [n1, u_para1, T_a1, T_e1, u_para0_half_nodes, nu_hat1, S_hat1, Q_hat1, nTe_hat1, kappaTx] = fluid_solver_IMEX111(f_vals_low_rank, n0, u_para0, T_a0, T_e0, dt, dx, dv_perp, dv_para, v_perp, v_para, qa, qe, ma, me, R_const, x_min, x_max, leftBC, rightBC, n_BC_left, u_para_BC_left, Te_BC_left, n_BC_right, u_para_BC_right, Te_BC_right)
     Nx = numel(n0); % max val of i, j
     x_ghost_left = x_min - dx/2; % left ghost cell
     x_ghost_right = x_max + dx/2; % right ghost cell
 
     % get boundary conditions
-    [n0_boundary, u_para0_boundary, T_ae_boundary] = get_boundaries(x_min, x_max); % Ta = Te at boundary --> T_ae
-    n_BC_left = n0_boundary(x_ghost_left); n_BC_right = n0_boundary(x_ghost_right);
-    u_para_BC_left = u_para0_boundary(x_ghost_left); u_para_BC_right = u_para0_boundary(x_ghost_right);
-    Tae_BC_left = T_ae_boundary(x_ghost_left); Tae_BC_right = T_ae_boundary(x_ghost_right);
+    % % [n0_boundary, u_para0_boundary, T_ae_boundary] = get_boundaries(v_perp, f0, v_para, ma, dv_perp, dv_para); % Ta = Te at boundary --> T_ae
+    % n_BC_left = n_IC(x_ghost_left); n_BC_right = n_IC(x_ghost_right);
+    % u_para_BC_left = u_IC(x_ghost_left); u_para_BC_right = u_IC(x_ghost_right);
+    % Tae_BC_left = Ta_IC(x_ghost_left); Tae_BC_right = Ta_IC(x_ghost_right);
 
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     %%% ---------- STAGE ONE ----------- %%%
@@ -771,11 +678,10 @@ function [n1, u_para1, T_a1, T_e1, u_para0_half_nodes, nu_hat1, S_hat1, Q_hat1, 
     n0_pos = [n0; n_BC_right]; n0_neg = [n_BC_left; n0];
     u_para0_half_nodes = ([u_para_BC_left; u_para0] + [u_para0; u_para_BC_right])/2; %u_para0_half_nodes = [u_para0_min; u_para0_half_nodes; u_para0_max];
     U0 = 0.5*((3/ma)*T_a0 + u_para0.^2);
-    Te0_pos = [T_e0(2:end); Tae_BC_right]; Te0_neg = [Tae_BC_left; T_e0(1:end-1)];
 
     % first, compute fluxes via summation
-    [nu_hat1, S_hat1, Q_hat1] = get_fluxes(f_vals_low_rank, v_perp, v_para, R_const, x_min, x_max, dx, dv_perp, dv_para);
-    nTe_hat1 = ((n0_neg.*[Tae_BC_left; T_e0]).*(u_para0_half_nodes > 0) + (n0_pos.*[T_e0; Tae_BC_right]).*(u_para0_half_nodes <= 0)); % upwinding
+    [nu_hat1, S_hat1, Q_hat1] = get_fluxes(f_vals_low_rank, v_perp, v_para, dv_perp, dv_para, leftBC, rightBC);
+    nTe_hat1 = ((n0_neg.*[Te_BC_left; T_e0]).*(u_para0_half_nodes > 0) + (n0_pos.*[T_e0; Te_BC_right]).*(u_para0_half_nodes <= 0)); % upwinding
 
     % shift bounds to get flux pos/neg
     nu_hat1_pos = nu_hat1(2:end); nu_hat1_neg = nu_hat1(1:end-1);
@@ -789,24 +695,25 @@ function [n1, u_para1, T_a1, T_e1, u_para0_half_nodes, nu_hat1, S_hat1, Q_hat1, 
     n_pos = [n1(2:end); n_BC_right]; n_neg = [n_BC_left; n1(1:end-1)];
 
     % ---- init y_vec, R_norm ----  
-    % y = [n0.*u_para0; n0.*U0; T_e0];
     y = [n1.*u_para0; n1.*U0; T_e0];
 
     nu = y(1:Nx); 
     nU = y(Nx+1:2*Nx); 
     T_e = y(2*Nx+1:end);
-    Te_pos = [T_e(2:end); Tae_BC_right]; Te_neg = [Tae_BC_left; T_e(1:end-1)];
+    Te_pos = [T_e(2:end); Te_BC_right]; Te_neg = [Te_BC_left; T_e(1:end-1)];
     nTe_pos = n_pos.*Te_pos; nTe_neg = n_neg.*Te_neg;
 
-    kappa_pos = (3.2/(2*sqrt(2*me)))*((Te_pos.^(5/2) + T_e.^(5/2)));
-    kappa_neg = (3.2/(2*sqrt(2*me)))*((T_e.^(5/2) + Te_neg.^(5/2))); 
+    kappa_pos = (3.2/(2*sqrt(2*me)))*((Te_pos.^(5/2) + T_e.^(5/2))); kappa_pos = 0;
+    kappa_neg = (3.2/(2*sqrt(2*me)))*((T_e.^(5/2) + Te_neg.^(5/2))); kappa_neg = 0;
 
     R1 = nu - (n0.*u_para0) + (dt/dx).*(S_hat1_pos - S_hat1_neg) - ((dt*qa)/(2*dx*qe*ma)).*((n_pos.*Te_pos) - (n_neg.*Te_neg));
-    R2 = nU - (n0.*U0) + (dt/dx).*(Q_hat1_pos - Q_hat1_neg) - (((dt*qa*nu)./(2*dx*qe*n1)).*((n_pos.*Te_pos) - (n_neg.*Te_neg))) - (((dt.*3.*sqrt(2*me))./((ma.^2).*(T_e.^(3/2)))) .* (((n1.^2).*T_e) - ((ma/3).*((2.*n1.*nU) - (nu.^2)))));
-    R3 = (n1.*T_e) - (n0.*T_e0) + ((5*dt)/(3*dx)).*((u_para0_half_nodes(2:end).*nTe_hat1_pos) - (u_para0_half_nodes(1:end-1).*nTe_hat1_neg)) - (((dt*(nu./n1))./(3*dx)).*(nTe_pos - nTe_neg)) - (((2*dt)/(3*dx.^2)) .* ((kappa_pos.*(Te_pos - T_e)) - (kappa_neg.*(T_e - Te_neg)))) - (((dt.*2.*sqrt(2*me))./(ma.*(T_e.^(3/2)))) .* (((ma/3).*((2*n1.*nU) - (nu.^2))) - ((n1.^2).*T_e)));
+    R2 = nU - (n0.*U0) + (dt/dx).*(Q_hat1_pos - Q_hat1_neg) - (((dt*qa*nu)./(2*dx*qe*n1)).*((n_pos.*Te_pos) - (n_neg.*Te_neg))); % turn off DFP - (((dt.*3.*sqrt(2*me))./((ma.^2).*(T_e.^(3/2)))) .* (((n1.^2).*T_e) - ((ma/3).*((2.*n1.*nU) - (nu.^2)))));
+    R3 = (n1.*T_e) - (n0.*T_e0) + ((5*dt)/(3*dx)).*((u_para0_half_nodes(2:end).*nTe_hat1_pos) - (u_para0_half_nodes(1:end-1).*nTe_hat1_neg)) - (((dt*(nu./n1))./(3*dx)).*(nTe_pos - nTe_neg)) - (((2*dt)/(3*dx.^2)) .* ((kappa_pos.*(Te_pos - T_e)) - (kappa_neg.*(T_e - Te_neg))));% this turns off ion-electron collision operator - (((dt.*2.*sqrt(2*me))./(ma.*(T_e.^(3/2)))) .* (((ma/3).*((2*n1.*nU) - (nu.^2))) - ((n1.^2).*T_e)));
     R = [R1; R2; R3];
 
-    tol = min(5e-12, max(abs(R))*5e-10); % ensure we don't get worse!
+    tol = min(5e-12, max(abs(R))*5e-9); % ensure we don't get worse!
+    tol = 5e-14;
+    iters = 0;
    
     while max(abs(R)) > tol
         % define partial derivatives of residual
@@ -816,14 +723,16 @@ function [n1, u_para1, T_a1, T_e1, u_para0_half_nodes, nu_hat1, S_hat1, Q_hat1, 
     
         nU_nu = diag( ((-dt*qa)./(2*dx.*qe.*n1)).*((n_pos.*Te_pos) - (n_neg.*Te_neg)) );
         nU_nU = spdiags(ones(Nx), 0, Nx, Nx);
-        nU_Te_mid = ((3*dt*sqrt(2*me))./(2*(ma.^2))).*(((n1.^2)./(T_e.^(3/2))  + (ma./(T_e.^(5/2))).*((2*n1.*nU) - (nu.^2)) ));
+        nU_Te_mid = 0; % turn off DFP ((3*dt*sqrt(2*me))./(2*(ma.^2))).*(((n1.^2)./(T_e.^(3/2))  + (ma./(T_e.^(5/2))).*((2*n1.*nU) - (nu.^2)) ));
         nU_Te = gallery('tridiag', (dt.*qa.*nu(2:end).*(n1(1:end-1)./n1(2:end)))./(2*dx*qe), nU_Te_mid, -(dt.*qa.*nu(1:end-1).*(n1(2:end)./n1(1:end-1)))/(2*dx*qe) );
     
         Te_nu = diag(-(dt.*((n_pos.*Te_pos) - (n_neg.*Te_neg)))./(3*dx*n1));
         Te_nU = spdiags(zeros(Nx), 0, Nx, Nx);
-        Te_Te_left = ((dt.*nu.*n_neg)./(3*dx.*n1)) + (((dt*3.2)./(3*(dx.^2).*sqrt(2*me))).*(((5.*(Te_neg.^(3/2))/2).*(T_e - Te_neg)) - (T_e.^(5/2) + Te_neg.^(5/2)))); Te_Te_left = Te_Te_left(2:end);
-        Te_Te_mid = n1 - (((dt*3.2)./(3*(dx.^2).*sqrt(2*me))).*(((5.*(T_e.^(3/2))./2).*(Te_pos - T_e)) - (Te_pos.^(5/2) + T_e.^(5/2)) - ((5.*(T_e.^(3/2))/2).*(T_e - Te_neg)) - (T_e.^(5/2) + Te_neg.^(5/2)))) - ((2*dt*sqrt(2*me)./(2*ma)).*(((-ma./(T_e.^(5/2))).*(2*n1.*nU - (nu.^2)) + ((n1.^2)./(T_e.^(3/2))))));
-        Te_Te_right = ((-dt.*nu.*n_pos)./(3*dx.*n1)) - (((dt*3.2)./(3*(dx.^2).*sqrt(2*me))).*(((5.*(Te_pos.^(3/2))/2).*(Te_pos - T_e)) + (Te_pos.^(5/2) + T_e.^(5/2)))); Te_Te_right = Te_Te_right(1:end-1);
+        Te_Te_left = ((dt.*nu.*n_neg)./(3*dx.*n1)); % turns off DFP operator + (((dt*3.2)./(3*(dx.^2).*sqrt(2*me))).*(((5.*(Te_neg.^(3/2))/2).*(T_e - Te_neg)) - (T_e.^(5/2) + Te_neg.^(5/2)))); 
+        Te_Te_left = Te_Te_left(2:end);
+        Te_Te_mid = n1; % turns off DFP operator - (((dt*3.2)./(3*(dx.^2).*sqrt(2*me))).*(((5.*(T_e.^(3/2))./2).*(Te_pos - T_e)) - (Te_pos.^(5/2) + T_e.^(5/2)) - ((5.*(T_e.^(3/2))/2).*(T_e - Te_neg)) - (T_e.^(5/2) + Te_neg.^(5/2)))) - ((2*dt*sqrt(2*me)./(2*ma)).*(((-ma./(T_e.^(5/2))).*(2*n1.*nU - (nu.^2)) + ((n1.^2)./(T_e.^(3/2))))));
+        Te_Te_right = ((-dt.*nu.*n_pos)./(3*dx.*n1)); % turns off DFP operator - (((dt*3.2)./(3*(dx.^2).*sqrt(2*me))).*(((5.*(Te_pos.^(3/2))/2).*(Te_pos - T_e)) + (Te_pos.^(5/2) + T_e.^(5/2)))); 
+        Te_Te_right = Te_Te_right(1:end-1);
         Te_Te = gallery('tridiag', Te_Te_left, Te_Te_mid, Te_Te_right);
 
         P = [nu_nu, nu_nU, nu_Te;
@@ -837,16 +746,22 @@ function [n1, u_para1, T_a1, T_e1, u_para0_half_nodes, nu_hat1, S_hat1, Q_hat1, 
         nu = y(1:Nx); 
         nU = y(Nx+1:2*Nx); 
         T_e = y(2*Nx+1:end);
-        Te_pos = [T_e(2:end); Tae_BC_right]; Te_neg = [Tae_BC_left; T_e(1:end-1)];
+        Te_pos = [T_e(2:end); Te_BC_right]; Te_neg = [Te_BC_left; T_e(1:end-1)];
         nTe_pos = n_pos.*Te_pos; nTe_neg = n_neg.*Te_neg;
 
-        kappa_pos = (3.2/(2*sqrt(2*me)))*((Te_pos.^(5/2) + T_e.^(5/2)));
-        kappa_neg = (3.2/(2*sqrt(2*me)))*((T_e.^(5/2) + Te_neg.^(5/2)));
+        kappa_pos = (3.2/(2*sqrt(2*me)))*((Te_pos.^(5/2) + T_e.^(5/2))); kappa_pos = 0;
+        kappa_neg = (3.2/(2*sqrt(2*me)))*((T_e.^(5/2) + Te_neg.^(5/2))); kappa_neg = 0;
         
         R1 = nu - (n0.*u_para0) + (dt/dx).*(S_hat1_pos - S_hat1_neg) - ((dt*qa)/(2*dx*qe*ma)).*((n_pos.*Te_pos) - (n_neg.*Te_neg));
-        R2 = nU - (n0.*U0) + (dt/dx).*(Q_hat1_pos - Q_hat1_neg) - (((dt*qa*nu)./(2*dx*qe*n1)).*((n_pos.*Te_pos) - (n_neg.*Te_neg))) - (((dt.*3.*sqrt(2*me))./((ma.^2).*(T_e.^(3/2)))) .* (((n1.^2).*T_e) - ((ma/3).*((2.*n1.*nU) - (nu.^2)))));
-        R3 = (n1.*T_e) - (n0.*T_e0) + ((5*dt)/(3*dx)).*((u_para0_half_nodes(2:end).*nTe_hat1_pos) - (u_para0_half_nodes(1:end-1).*nTe_hat1_neg)) - (((dt*(nu./n1))./(3*dx)).*(nTe_pos - nTe_neg)) - (((2*dt)/(3*dx.^2)) .* ((kappa_pos.*(Te_pos - T_e)) - (kappa_neg.*(T_e - Te_neg)))) - (((dt.*2.*sqrt(2*me))./(ma.*(T_e.^(3/2)))) .* (((ma/3).*((2*n1.*nU) - (nu.^2))) - ((n1.^2).*T_e)));
+        R2 = nU - (n0.*U0) + (dt/dx).*(Q_hat1_pos - Q_hat1_neg) - (((dt*qa*nu)./(2*dx*qe*n1)).*((n_pos.*Te_pos) - (n_neg.*Te_neg))); % turn off DFP- (((dt.*3.*sqrt(2*me))./((ma.^2).*(T_e.^(3/2)))) .* (((n1.^2).*T_e) - ((ma/3).*((2.*n1.*nU) - (nu.^2)))));
+        R3 = (n1.*T_e) - (n0.*T_e0) + ((5*dt)/(3*dx)).*((u_para0_half_nodes(2:end).*nTe_hat1_pos) - (u_para0_half_nodes(1:end-1).*nTe_hat1_neg)) - (((dt*(nu./n1))./(3*dx)).*(nTe_pos - nTe_neg)) - (((2*dt)/(3*dx.^2)) .* ((kappa_pos.*(Te_pos - T_e)) - (kappa_neg.*(T_e - Te_neg)))); % this turns off ion-electron collision operator - (((dt.*2.*sqrt(2*me))./(ma.*(T_e.^(3/2)))) .* (((ma/3).*((2*n1.*nU) - (nu.^2))) - ((n1.^2).*T_e)));
         R = [R1; R2; R3];
+
+        iters = iters + 1;
+        if iters > 500
+            disp(['Stalling... err=', num2str(max(abs(R))), ' tol=', num2str(tol)]);
+            break
+        end
     end
   
     % parameters to return
@@ -857,11 +772,11 @@ function [n1, u_para1, T_a1, T_e1, u_para0_half_nodes, nu_hat1, S_hat1, Q_hat1, 
     u_para1 = nu1 ./ n1;
     T_a1 = (ma/3)*(2*nU1./n1 - (nu1.^2)./(n1.^2));
 
-    Te_all = [Tae_BC_left; T_e1; Tae_BC_right];
-    kappaTx = (3.2/(2*sqrt(2*me)*dx))*(Te_all(1:end-1).^(2.5)+Te_all(2:end).^(2.5)).*(Te_all(2:end)-Te_all(1:end-1));
+    Te_all = [Te_BC_left; T_e1; Te_BC_right];
+    kappaTx = 0; % turn off DFP (3.2/(2*sqrt(2*me)*dx))*(Te_all(1:end-1).^(2.5)+Te_all(2:end).^(2.5)).*(Te_all(2:end)-Te_all(1:end-1));
 end
 
-function [n2, u_para2, T_a2, T_e2, u_para1_half_nodes, nu_hat2, S_hat2, Q_hat2, nTe_hat2, kappaTx2] = fluid_solver_IMEX222_stage2(f1_vals_low_rank, n0, u_para0, T_a0, T_e0, n1, u_para1, T_a1, T_e1, nu_hat1, S_hat1, Q_hat1, nTe_hat1, dt, dx, dv_perp, dv_para, v_perp, v_para, qa, qe, ma, me, R_const, x_min, x_max)
+function [n2, u_para2, T_a2, T_e2, u_para1_half_nodes, nu_hat2, S_hat2, Q_hat2, nTe_hat2, kappaTx2] = fluid_solver_IMEX222_stage2(f1_vals_low_rank, n0, u_para0, T_a0, T_e0, n1, u_para1, T_a1, T_e1, nu_hat1, S_hat1, Q_hat1, nTe_hat1, dt, dx, dv_perp, dv_para, v_perp, v_para, qa, qe, ma, me, R_const, x_min, x_max, leftBC, rightBC, n_BC_left, u_para_BC_left, Tae_BC_left, n_BC_right, u_para_BC_right, Tae_BC_right)
     
     gamma = 1 - (sqrt(2)/2);
     delta = 1 - (1/(2*gamma));
@@ -873,11 +788,11 @@ function [n2, u_para2, T_a2, T_e2, u_para1_half_nodes, nu_hat2, S_hat2, Q_hat2, 
     x_ghost_right = x_max + dx/2; % right ghost cell
 
     % get boundary conditions
-    [n0_boundary, u_para0_boundary, T_ae_boundary] = get_boundaries(x_min, x_max); % Ta = Te at boundary --> T_ae
-    n_BC_left = n0_boundary(x_ghost_left); n_BC_right = n0_boundary(x_ghost_right);
-    u_para_BC_left = u_para0_boundary(x_ghost_left); u_para_BC_right = u_para0_boundary(x_ghost_right);
+    % [n0_boundary, u_para0_boundary, T_ae_boundary] = get_boundaries(v_perp, f0, v_para, ma, dv_perp, dv_para); % Ta = Te at boundary --> T_ae
+    % n_BC_left = n_IC(x_ghost_left); n_BC_right = n_IC(x_ghost_right);
+    % u_para_BC_left = u_IC(x_ghost_left); u_para_BC_right = u_IC(x_ghost_right);
     u_para0_half_nodes = ([u_para_BC_left; u_para0] + [u_para0; u_para_BC_right])/2;
-    Tae_BC_left = T_ae_boundary(x_ghost_left); Tae_BC_right = T_ae_boundary(x_ghost_right);
+    % Tae_BC_left = Ta_IC(x_ghost_left); Tae_BC_right = Ta_IC(x_ghost_right);
     U0 = 0.5*((3/ma)*T_a0 + u_para0.^2);
 
     %%% SAVE STUFF FROM STAGE 1 %%%
@@ -909,7 +824,7 @@ function [n2, u_para2, T_a2, T_e2, u_para1_half_nodes, nu_hat2, S_hat2, Q_hat2, 
     kappa1_neg = (3.2/(2*sqrt(2*me)))*((T_e1.^(5/2) + Te1_neg.^(5/2)));
 
     % recompute fluxes using solution from first time-step
-    [nu_hat2, S_hat2, Q_hat2] = get_fluxes(f1_vals_low_rank, v_perp, v_para, R_const, x_min, x_max, dx, dv_perp, dv_para);
+    [nu_hat2, S_hat2, Q_hat2] = get_fluxes(f1_vals_low_rank, v_perp, v_para, dv_perp, dv_para, leftBC, rightBC);
     nTe_hat2 = (([n_BC_left; n1].*[Tae_BC_left; T_e1]).*(u_para1_half_nodes > 0) + ([n1; n_BC_right].*[T_e1; Tae_BC_right]).*(u_para1_half_nodes <= 0)); % upwinding
 
     % shift bounds to get flux pos/neg
@@ -1021,12 +936,8 @@ function [n2, u_para2, T_a2, T_e2, u_para1_half_nodes, nu_hat2, S_hat2, Q_hat2, 
    
 end
 
-function [nu_hat, S_hat, Q_hat] = get_fluxes(f_vals_low_rank, V_perp, V_para, R_const, x_min, x_max, dx, dv_perp, dv_para)
+function [nu_hat, S_hat, Q_hat] = get_fluxes(f_vals_low_rank, V_perp, V_para, dv_perp, dv_para, leftBC, rightBC)
     Nx = size(f_vals_low_rank, 1);
-    [n0, u_para0, T0] = get_boundaries(x_min, x_max);
-
-    leftBC = maxwellian(n0(x_min - dx/2), V_perp, V_para, u_para0(x_min - dx/2), T0(x_min - dx/2), R_const);
-    rightBC = maxwellian(n0(x_max + dx/2), V_perp, V_para, u_para0(x_max + dx/2), T0(x_max + dx/2), R_const);
 
     nu_hat = zeros(Nx+1, 1);
     S_hat = zeros(Nx+1, 1);
@@ -1064,11 +975,19 @@ function [f] = maxwellian(n, v_perp, v_para, u_para, T, R)
     end
 end
 
-function [n0, u_para0, T_ae0] = get_boundaries(x_min, x_max)
-    x_mid = x_min + (x_max - x_min)/2;
-    n0 = @(x) 0.36*tanh(0.05*(x-x_mid)) + 0.64;
-    u_para0 = @(x) -1.1154*tanh(0.05*(x-x_mid)) + 1.983;
-    T_ae0 = @(x) 0.4424*tanh(0.05*(x-x_mid)) + 0.5576; % Ta = Te at boundary!
+function [n0, u_para0, T_ae0] = get_boundaries(Rmat, A0, B0, Zmat, ma, dr, dz)
+    % n0 = @(x) 2*pi*dr*dz*sum(sum(f0(x) .* Rmat));
+    % u_para0 = @(x) 2*pi*dr*dz*sum(sum(Zmat .* f0(x) .* Rmat))./n0(x);
+    % T_ae0 = @(x) (2*pi*dr*dz*sum(sum((Rmat.^2 + Zmat.^2).*f0(x).*Rmat)) - n0(x).*u_para0(x).^2)./(3*n0(x)/ma);
+    A = @(x) A0(x);
+
+    C0 = 2*pi*dr*dz * sum(sum(B0 .* Rmat));
+    C1 = 2*pi*dr*dz * sum(sum(Zmat .* B0 .* Rmat));
+    C2 = 2*pi*dr*dz * sum(sum((Rmat.^2+Zmat.^2).*B0.*Rmat));
+    
+    n0      = @(x) A(x) * C0;
+    u_para0 = @(x) C1 / C0;           % constant
+    T_ae0   = @(x) (C2/C0) / (3/ma);  % constant
 end
 
 
@@ -1164,273 +1083,3 @@ function [] = PlotF(f_vals_low_rank, Xmat, Rmat, Zmat2, Nz, fig_num)
     xlabel('x');ylabel('v_{||}');view(2);colorbar;
     drawnow;
 end
-
-
-
-
-
-
-% ------ Previous stuff ---------- %
-
-% we don't use this method because we split up the IMEX222 fluid solver
-function [n2, u_para2, T_a2, T_e2, u_para0_half_nodes, nu_hat2, S_hat2, Q_hat2, nTe_hat2, kappaTx2] = fluid_solver_IMEX222(f_vals_low_rank, n0, u_para0, T_a0, T_e0, dt, dx, dv_perp, dv_para, v_perp, v_para, qa, qe, ma, me, R_const, x_min, x_max)
-    
-    r0 = 30;
-
-    gamma = 1 - (sqrt(2)/2);
-    delta = 1 - (1/(2*gamma));
-    dt1 = gamma*dt;
-    dt2 = (1-gamma)*dt;
-
-    Nx = numel(n0); % max val of i, j
-    x_ghost_left = x_min - dx/2; % left ghost cell
-    x_ghost_right = x_max + dx/2; % right ghost cell
-
-    % get boundary conditions
-    [n0_boundary, u_para0_boundary, T_ae_boundary] = get_boundaries(x_min, x_max); % Ta = Te at boundary --> T_ae
-    n_BC_left = n0_boundary(x_ghost_left); n_BC_right = n0_boundary(x_ghost_right);
-    u_para_BC_left = u_para0_boundary(x_ghost_left); u_para_BC_right = u_para0_boundary(x_ghost_right);
-    Tae_BC_left = T_ae_boundary(x_ghost_left); Tae_BC_right = T_ae_boundary(x_ghost_right);
-
-    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-    %%% ---------- STAGE ONE ----------- %%%
-    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-    n0_pos = [n0; n_BC_right]; n0_neg = [n_BC_left; n0];
-    u_para0_half_nodes = ([u_para_BC_left; u_para0] + [u_para0; u_para_BC_right])/2;
-    U0 = 0.5*((3/ma)*T_a0 + u_para0.^2);
-    Te0_pos = [T_e0(2:end); Tae_BC_right]; Te0_neg = [Tae_BC_left; T_e0(1:end-1)];
-
-    % first, compute fluxes via summation
-    [nu_hat1, S_hat1, Q_hat1] = get_fluxes(f_vals_low_rank, v_perp, v_para, R_const, x_min, x_max, dx, dv_perp, dv_para);
-    nTe_hat1 = ((n0_neg.*[Tae_BC_left; T_e0]).*(u_para0_half_nodes > 0) + (n0_pos.*[T_e0; Tae_BC_right]).*(u_para0_half_nodes <= 0)); % upwinding
-
-    % shift bounds to get flux pos/neg
-    nu_hat1_pos = nu_hat1(2:end); nu_hat1_neg = nu_hat1(1:end-1);
-
-    S_hat1_pos = S_hat1(2:end); S_hat1_neg = S_hat1(1:end-1);
-    Q_hat1_pos = Q_hat1(2:end); Q_hat1_neg = Q_hat1(1:end-1);
-    nTe_hat1_pos = nTe_hat1(2:end); nTe_hat1_neg = nTe_hat1(1:end-1);
-
-    % define A0 for later
-    An_0 = - (1/dx)*(nu_hat1_pos - nu_hat1_neg);
-  
-    % explicitly find n via Forward Euler
-    n1 = n0 + dt1*An_0; % now find n_i+1, n_i-1
-    n_pos = [n1(2:end); n_BC_right]; n_neg = [n_BC_left; n1(1:end-1)];
-
-    % define the rest of the A0s
-    Anu_0 = - (1/dx)*(S_hat1_pos - S_hat1_neg);
-    AnU_0 = - (1/dx).*(Q_hat1_pos - Q_hat1_neg);
-    AnTe_0 = - ((5)/(3*dx)).*((u_para0_half_nodes(2:end).*nTe_hat1_pos) - (u_para0_half_nodes(1:end-1).*nTe_hat1_neg));
-
-    % ---- init y_vec, R_norm ----  
-    % y = [n0.*u_para0; n0.*U0; T_e0];
-    y = [n1.*u_para0; n1.*U0; T_e0];
-
-    nu = y(1:Nx); 
-    nU = y(Nx+1:2*Nx); 
-    T_e = y(2*Nx+1:end);
-    Te_pos = [T_e(2:end); Tae_BC_right]; Te_neg = [Tae_BC_left; T_e(1:end-1)];
-    nTe_pos = n_pos.*Te_pos; nTe_neg = n_neg.*Te_neg;
-
-    kappa_pos = (3.2/(2*sqrt(2*me)))*((Te_pos.^(5/2) + T_e.^(5/2)));
-    kappa_neg = (3.2/(2*sqrt(2*me)))*((T_e.^(5/2) + Te_neg.^(5/2))); 
-
-    R1 = nu - (n0.*u_para0) + (dt1/dx).*(S_hat1_pos - S_hat1_neg) - ((dt1*qa)/(2*dx*qe*ma)).*((n_pos.*Te_pos) - (n_neg.*Te_neg));
-    R2 = nU - (n0.*U0) + (dt1/dx).*(Q_hat1_pos - Q_hat1_neg) - (((dt1*qa*nu)./(2*dx*qe*n1)).*((n_pos.*Te_pos) - (n_neg.*Te_neg))) - (((dt1.*3.*sqrt(2*me))./((ma.^2).*(T_e.^(3/2)))) .* (((n1.^2).*T_e) - ((ma/3).*((2.*n1.*nU) - (nu.^2)))));
-    R3 = (n1.*T_e) - (n0.*T_e0) + ((5*dt1)/(3*dx)).*((u_para0_half_nodes(2:end).*nTe_hat1_pos) - (u_para0_half_nodes(1:end-1).*nTe_hat1_neg)) - (((dt1*(nu./n1))./(3*dx)).*(nTe_pos - nTe_neg)) - (((2*dt1)/(3*dx.^2)) .* ((kappa_pos.*(Te_pos - T_e)) - (kappa_neg.*(T_e - Te_neg)))) - (((dt1.*2.*sqrt(2*me))./(ma.*(T_e.^(3/2)))) .* (((ma/3).*((2*n1.*nU) - (nu.^2))) - ((n1.^2).*T_e)));
-    R = [R1; R2; R3];
-
-    tol = min(5e-12, max(abs(R))*5e-10); % ensure we don't get worse!
-   
-    while max(abs(R)) > tol
-        % define partial derivatives of residual
-        nu_nu = spdiags(ones(Nx), 0, Nx, Nx);
-        nu_nU = spdiags(zeros(Nx),0, Nx, Nx);
-        nu_Te = gallery('tridiag', (dt1*qa*n1(1:end-1))/(2*dx*qe*ma), zeros(Nx,1), -(dt1*qa*n1(2:end))/(2*dx*qe*ma));
-    
-        nU_nu = diag( ((-dt1*qa)./(2*dx.*qe.*n1)).*((n_pos.*Te_pos) - (n_neg.*Te_neg)) );
-        nU_nU = spdiags(ones(Nx), 0, Nx, Nx);
-        nU_Te_mid = ((3*dt1*sqrt(2*me))./(2*(ma.^2))).*(((n1.^2)./(T_e.^(3/2))  + (ma./(T_e.^(5/2))).*((2*n1.*nU) - (nu.^2)) ));
-        nU_Te = gallery('tridiag', (dt1.*qa.*nu(2:end).*(n1(1:end-1)./n1(2:end)))./(2*dx*qe), nU_Te_mid, -(dt1.*qa.*nu(1:end-1).*(n1(2:end)./n1(1:end-1)))/(2*dx*qe) );
-    
-        Te_nu = diag(-(dt1.*((n_pos.*Te_pos) - (n_neg.*Te_neg)))./(3*dx*n1));
-        Te_nU = spdiags(zeros(Nx), 0, Nx, Nx);
-        Te_Te_left = ((dt1.*nu.*n_neg)./(3*dx.*n1)) + (((dt1*3.2)./(3*(dx.^2).*sqrt(2*me))).*(((5.*(Te_neg.^(3/2))/2).*(T_e - Te_neg)) - (T_e.^(5/2) + Te_neg.^(5/2)))); Te_Te_left = Te_Te_left(2:end);
-        Te_Te_mid = n1 - (((dt1*3.2)./(3*(dx.^2).*sqrt(2*me))).*(((5.*(T_e.^(3/2))./2).*(Te_pos - T_e)) - (Te_pos.^(5/2) + T_e.^(5/2)) - ((5.*(T_e.^(3/2))/2).*(T_e - Te_neg)) - (T_e.^(5/2) + Te_neg.^(5/2)))) - ((2*dt1*sqrt(2*me)./(2*ma)).*(((-ma./(T_e.^(5/2))).*(2*n1.*nU - (nu.^2)) + ((n1.^2)./(T_e.^(3/2))))));
-        Te_Te_right = ((-dt1.*nu.*n_pos)./(3*dx.*n1)) - (((dt1*3.2)./(3*(dx.^2).*sqrt(2*me))).*(((5.*(Te_pos.^(3/2))/2).*(Te_pos - T_e)) + (Te_pos.^(5/2) + T_e.^(5/2)))); Te_Te_right = Te_Te_right(1:end-1);
-        Te_Te = gallery('tridiag', Te_Te_left, Te_Te_mid, Te_Te_right);
-
-        P = [nu_nu, nu_nU, nu_Te;
-             nU_nu, nU_nU, nU_Te;
-             Te_nu, Te_nU, Te_Te]; % holy block matrix
-     
-        dy = -P\R; % solve for delta y at time l+1
-        y = y + dy;
-
-        % update y_vec stuff
-        nu = y(1:Nx);
-        nU = y(Nx+1:2*Nx); 
-        T_e = y(2*Nx+1:end);
-        Te_pos = [T_e(2:end); Tae_BC_right]; Te_neg = [Tae_BC_left; T_e(1:end-1)];
-        nTe_pos = n_pos.*Te_pos; nTe_neg = n_neg.*Te_neg;
-
-        kappa_pos = (3.2/(2*sqrt(2*me)))*((Te_pos.^(5/2) + T_e.^(5/2)));
-        kappa_neg = (3.2/(2*sqrt(2*me)))*((T_e.^(5/2) + Te_neg.^(5/2)));
-        
-        R1 = nu - (n0.*u_para0) + (dt1/dx).*(S_hat1_pos - S_hat1_neg) - ((dt1*qa)/(2*dx*qe*ma)).*((n_pos.*Te_pos) - (n_neg.*Te_neg));
-        R2 = nU - (n0.*U0) + (dt1/dx).*(Q_hat1_pos - Q_hat1_neg) - (((dt1*qa*nu)./(2*dx*qe*n1)).*((n_pos.*Te_pos) - (n_neg.*Te_neg))) - (((dt1.*3.*sqrt(2*me))./((ma.^2).*(T_e.^(3/2)))) .* (((n1.^2).*T_e) - ((ma/3).*((2.*n1.*nU) - (nu.^2)))));
-        R3 = (n1.*T_e) - (n0.*T_e0) + ((5*dt1)/(3*dx)).*((u_para0_half_nodes(2:end).*nTe_hat1_pos) - (u_para0_half_nodes(1:end-1).*nTe_hat1_neg)) - (((dt1*(nu./n1))./(3*dx)).*(nTe_pos - nTe_neg)) - (((2*dt1)/(3*dx.^2)) .* ((kappa_pos.*(Te_pos - T_e)) - (kappa_neg.*(T_e - Te_neg)))) - (((dt1.*2.*sqrt(2*me))./(ma.*(T_e.^(3/2)))) .* (((ma/3).*((2*n1.*nU) - (nu.^2))) - ((n1.^2).*T_e)));
-        R = [R1; R2; R3];
-    end
-  
-    % parameters to return
-    nu1 = (y(1:Nx));
-    nU1 = y(Nx+1:2*Nx);
-    T_e1 = y(2*Nx+1:end);
-
-    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-    %%% ---------- STAGE TWO ----------- %%%
-    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-    u_para1 = nu1 ./ n1;
-    U1 = nU1 ./ n1;
-    Ta1 = (ma/3)*(2*U1 - (u_para1.^2));
-
-    n1_pos = [n1(2:end); n_BC_right]; n1_neg = [n_BC_left; n1(1:end-1)];
-    u_para1_half_nodes = ([u_para_BC_left; u_para1] + [u_para1; u_para_BC_right])/2;
-    Te1_pos = [T_e1(2:end); Tae_BC_right]; Te1_neg = [Tae_BC_left; T_e1(1:end-1)];
-    nTe1_pos = n1_pos.*Te1_pos; nTe1_neg = n1_neg.*Te1_neg;
-
-    kappa1_pos = (3.2/(2*sqrt(2*me)))*((Te1_pos.^(5/2) + T_e1.^(5/2)));
-    kappa1_neg = (3.2/(2*sqrt(2*me)))*((T_e1.^(5/2) + Te1_neg.^(5/2)));
-
-    % recompute fluxes using updated moments
-    %%% SHOULDN'T WE JUST COMPUTE THESE VIA BASIS SEPARATION %%%
-    f1_vals = maxwellian(n1, v_perp, v_para, u_para1, Ta1, R_const);
-    f1_vals_low_rank = cell(Nx, 3);
-    for spatialIndex = 1:Nx
-        f = f1_vals(:, :, spatialIndex);
-        rvals = v_perp(:, 1);
-        [Vr, S, Vz] = svd2(f, rvals);
-        r0 = min(r0, size(Vr, 2));
-        Vr = Vr(:, 1:r0); S = S(1:r0, 1:r0); Vz = Vz(:, 1:r0);
-        f1_vals_low_rank{spatialIndex, 1} = Vr;
-        f1_vals_low_rank{spatialIndex, 2} = S;
-        f1_vals_low_rank{spatialIndex, 3} = Vz;  
-    end
-
-    [nu_hat2, S_hat2, Q_hat2] = get_fluxes(f1_vals_low_rank, v_perp, v_para, R_const, x_min, x_max, dx, dv_perp, dv_para);
-    nTe_hat2 = (([n_BC_left; n1].*[Tae_BC_left; T_e1]).*(u_para1_half_nodes > 0) + ([n1; n_BC_right].*[T_e1; Tae_BC_right]).*(u_para1_half_nodes <= 0)); % upwinding
-
-    % shift bounds to get flux pos/neg
-    nu_hat2_pos = nu_hat2(2:end); nu_hat2_neg = nu_hat2(1:end-1);
-
-    S_hat2_pos = S_hat2(2:end); S_hat2_neg = S_hat2(1:end-1);
-    Q_hat2_pos = Q_hat2(2:end); Q_hat2_neg = Q_hat2(1:end-1);
-    nTe_hat2_pos = nTe_hat2(2:end); nTe_hat2_neg = nTe_hat2(1:end-1);
-
-    % explicitly find n via Forward Euler
-    n2 = n0 + (delta*dt*An_0) - (1-delta)*(dt/dx)*(nu_hat2_pos - nu_hat2_neg);
-    n2_pos = [n2(2:end); n_BC_right]; n2_neg = [n_BC_left; n2(1:end-1)];
-
-     % ---- init y_vec, R_norm ----
-    y = [n2.*u_para0; n2.*U0; T_e0];
-    % y = [nu1; nU1; T_e1];
-
-    nu = y(1:Nx); 
-    nU = y(Nx+1:2*Nx);
-    T_e = y(2*Nx+1:end);
-    Te_pos = [T_e(2:end); Tae_BC_right]; Te_neg = [Tae_BC_left; T_e(1:end-1)];
-    nTe_pos = n2_pos.*Te_pos; nTe_neg = n2_neg.*Te_neg;
-
-    n_pos = n2_pos; n_neg = n2_neg;
-    kappa_pos = (3.2/(2*sqrt(2*me)))*((Te_pos.^(5/2) + T_e.^(5/2)));
-    kappa_neg = (3.2/(2*sqrt(2*me)))*((T_e.^(5/2) + Te_neg.^(5/2))); 
-
-    R1 = nu - (n0.*u_para0)...
-            - (delta*dt*Anu_0)...
-            + ((1-delta)*dt/dx)*(S_hat2_pos - S_hat2_neg) ... 
-            - ((dt2*qa)/(2*dx*qe*ma)).*((n1_pos.*Te1_pos) - (n1_neg.*Te1_neg)) ...
-            - ((dt1*qa)/(2*dx*qe*ma)).*((n2_pos.*Te_pos) - (n2_neg.*Te_neg));
-    R2 = nU - (n0.*U0)...
-            - (delta*dt*AnU_0) ...
-            + ((1-delta)*dt/dx).*(Q_hat2_pos - Q_hat2_neg) ...
-            - (((dt2*qa*nu1)./(2*dx*qe*n1)).*((n1_pos.*Te1_pos) - (n1_neg.*Te1_neg)))...
-            - (((dt2.*3.*sqrt(2*me))./((ma.^2).*(T_e1.^(3/2)))) .* (((n1.^2).*T_e1) - ((ma/3).*((2.*n1.*nU1) - (nu1.^2))))) ...
-            - (((dt1*qa*nu)./(2*dx*qe*n2)).*((n2_pos.*Te_pos) - (n2_neg.*Te_neg)))...
-            - (((dt1.*3.*sqrt(2*me))./((ma.^2).*(T_e.^(3/2)))) .* (((n2.^2).*T_e) - ((ma/3).*((2.*n2.*nU) - (nu.^2)))));
-    R3 = (n2.*T_e) - (n0.*T_e0) - (delta*dt*AnTe_0) + (1-delta)*dt*(5/(3*dx)).*((u_para1_half_nodes(2:end).*nTe_hat2_pos) - (u_para1_half_nodes(1:end-1).*nTe_hat2_neg)) ...
-            - (((dt2*u_para1)./(3*dx)).*(nTe1_pos - nTe1_neg)) - (((2*dt2)/(3*dx.^2)) .* ((kappa1_pos.*(Te1_pos - T_e1)) - (kappa1_neg.*(T_e1 - Te1_neg)))) - (((dt2.*2.*sqrt(2*me))./(ma.*(T_e1.^(3/2)))) .* (((ma/3).*((2*n1.*nU1) - (nu1.^2))) - ((n1.^2).*T_e1))) ...
-            - (((dt1*(nu./n2))./(3*dx)).*(nTe_pos - nTe_neg)) - (((2*dt1)/(3*dx.^2)) .* ((kappa_pos.*(Te_pos - T_e)) - (kappa_neg.*(T_e - Te_neg)))) - (((dt1.*2.*sqrt(2*me))./(ma.*(T_e.^(3/2)))) .* (((ma/3).*((2*n2.*nU) - (nu.^2))) - ((n2.^2).*T_e)));
-    R = [R1; R2; R3];
-
-    tol = min(5e-12, max(abs(R))*5e-10); % ensure we don't get worse!
-
-    while max(abs(R)) > tol
-
-        % define partial derivatives of residual
-        nu_nu = spdiags(ones(Nx), 0, Nx, Nx);
-        nu_nU = spdiags(zeros(Nx),0, Nx, Nx);
-        nu_Te = gallery('tridiag', (dt1*qa*n2(1:end-1))/(2*dx*qe*ma), zeros(Nx,1), -(dt1*qa*n2(2:end))/(2*dx*qe*ma));
-    
-        nU_nu = diag( ((-dt1*qa)./(2*dx.*qe.*n2)).*((n_pos.*Te_pos) - (n_neg.*Te_neg)) );
-        nU_nU = spdiags(ones(Nx), 0, Nx, Nx);
-        nU_Te_mid = ((3*dt1*sqrt(2*me))./(2*(ma.^2))).*(((n2.^2)./(T_e.^(3/2))  + (ma./(T_e.^(5/2))).*((2*n2.*nU) - (nu.^2)) ));
-        nU_Te = gallery('tridiag', (dt1.*qa.*nu(2:end).*(n2(1:end-1)./n2(2:end)))./(2*dx*qe), nU_Te_mid, -(dt1.*qa.*nu(1:end-1).*(n2(2:end)./n2(1:end-1)))/(2*dx*qe) );
-    
-        Te_nu = diag(-(dt1.*((n_pos.*Te_pos) - (n_neg.*Te_neg)))./(3*dx*n2));
-        Te_nU = spdiags(zeros(Nx), 0, Nx, Nx);
-        Te_Te_left = ((dt1.*nu.*n_neg)./(3*dx.*n2)) + (((dt1*3.2)./(3*(dx.^2).*sqrt(2*me))).*(((5.*(Te_neg.^(3/2))/2).*(T_e - Te_neg)) - (T_e.^(5/2) + Te_neg.^(5/2)))); Te_Te_left = Te_Te_left(2:end);
-        Te_Te_mid = n2 - (((dt1*3.2)./(3*(dx.^2).*sqrt(2*me))).*(((5.*(T_e.^(3/2))./2).*(Te_pos - T_e)) - (Te_pos.^(5/2) + T_e.^(5/2)) - ((5.*(T_e.^(3/2))/2).*(T_e - Te_neg)) - (T_e.^(5/2) + Te_neg.^(5/2)))) - ((2*dt1*sqrt(2*me)./(2*ma)).*(((-ma./(T_e.^(5/2))).*(2*n2.*nU - (nu.^2)) + ((n2.^2)./(T_e.^(3/2))))));
-        Te_Te_right = ((-dt1.*nu.*n_pos)./(3*dx.*n2)) - (((dt1*3.2)./(3*(dx.^2).*sqrt(2*me))).*(((5.*(Te_pos.^(3/2))/2).*(Te_pos - T_e)) + (Te_pos.^(5/2) + T_e.^(5/2)))); Te_Te_right = Te_Te_right(1:end-1);
-        Te_Te = gallery('tridiag', Te_Te_left, Te_Te_mid, Te_Te_right);
-
-        P = [nu_nu, nu_nU, nu_Te;
-             nU_nu, nU_nU, nU_Te;
-             Te_nu, Te_nU, Te_Te]; % holy block matrix
-     
-        dy = -P\R; % solve for delta y at time l+1
-        y = y + dy;
-
-        % update y_vec stuff
-        nu = y(1:Nx); 
-        nU = y(Nx+1:2*Nx); 
-        T_e = y(2*Nx+1:end);
-        Te_pos = [T_e(2:end); Tae_BC_right]; Te_neg = [Tae_BC_left; T_e(1:end-1)];
-        nTe_pos = n_pos.*Te_pos; nTe_neg = n_neg.*Te_neg;
-
-        kappa_pos = (3.2/(2*sqrt(2*me)))*((Te_pos.^(5/2) + T_e.^(5/2)));
-        kappa_neg = (3.2/(2*sqrt(2*me)))*((T_e.^(5/2) + Te_neg.^(5/2)));
-
-        R1 = nu - (n0.*u_para0) - (delta*dt*Anu_0) + ((1-delta)*dt/dx)*(S_hat2_pos - S_hat2_neg) ... 
-                - ((dt2*qa)/(2*dx*qe*ma)).*((n1_pos.*Te1_pos) - (n1_neg.*Te1_neg)) ...
-                - ((dt1*qa)/(2*dx*qe*ma)).*((n2_pos.*Te_pos) - (n2_neg.*Te_neg));
-        R2 = nU - (n0.*U0)      - (delta*dt*AnU_0) + ((1-delta)*dt/dx).*(Q_hat2_pos - Q_hat2_neg) ...
-                - (((dt2*qa*nu1)./(2*dx*qe*n1)).*((n1_pos.*Te1_pos) - (n1_neg.*Te1_neg))) - (((dt2.*3.*sqrt(2*me))./((ma.^2).*(T_e1.^(3/2)))) .* (((n1.^2).*T_e1) - ((ma/3).*((2.*n1.*nU1) - (nu1.^2))))) ...
-                - (((dt1*qa*nu)./(2*dx*qe*n2)).*((n2_pos.*Te_pos) - (n2_neg.*Te_neg))) - (((dt1.*3.*sqrt(2*me))./((ma.^2).*(T_e.^(3/2)))) .* (((n2.^2).*T_e) - ((ma/3).*((2.*n2.*nU) - (nu.^2)))));
-        R3 = (n2.*T_e) - (n0.*T_e0) ...
-                - (delta*dt*AnTe_0) ...
-                + (1-delta)*dt*(5/(3*dx)).*((u_para1_half_nodes(2:end).*nTe_hat2_pos) - (u_para1_half_nodes(1:end-1).*nTe_hat2_neg)) ...
-                - (((dt2*nu1./n1)./(3*dx)).*(nTe1_pos - nTe1_neg))...
-                - (((2*dt2)/(3*dx.^2)) .* ((kappa1_pos.*(Te1_pos - T_e1)) - (kappa1_neg.*(T_e1 - Te1_neg))))...
-                - (((2*dt2*sqrt(2*me))./(ma.*(T_e1.^(3/2)))) .* (((ma/3).*((2*n1.*nU1) - (nu1.^2))) - ((n1.^2).*T_e1))) ...
-                - (((dt1*(nu./n2))./(3*dx)).*(nTe_pos - nTe_neg))...
-                - (((2*dt1)/(3*dx.^2)) .* ((kappa_pos.*(Te_pos - T_e)) - (kappa_neg.*(T_e - Te_neg)))) ...
-                - (((2*dt1*sqrt(2*me))./(ma.*(T_e.^(3/2)))) .* (((ma/3).*((2*n2.*nU) - (nu.^2))) - ((n2.^2).*T_e)));
-        R = [R1; R2; R3];
-    end
-
-    % return moments (yay)
-    nu2 = y(1:Nx);
-    nU2 = y(Nx+1:2*Nx);
-    T_e2 = y(2*Nx+1:end);
-
-    u_para2 = nu2 ./ n2;
-    T_a2 = (ma/3)*(2*nU2./n2 - (nu2.^2)./(n2.^2));
-    Te_all = [Tae_BC_left; T_e2; Tae_BC_right];
-    kappaTx2 = (3.2/(2*sqrt(2*me)*dx))*(Te_all(1:end-1).^(2.5)+Te_all(2:end).^(2.5)).*(Te_all(2:end)-Te_all(1:end-1));
-   
-end
-

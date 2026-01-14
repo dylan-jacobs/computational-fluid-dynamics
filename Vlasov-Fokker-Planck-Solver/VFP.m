@@ -1,4 +1,4 @@
-clc; close all;
+clc; close all; clear variables;
 
 % load reference solution 
 soln = load("vdfp_refsoln_IMEX222_Nx160_Nvperp200_Nvpar200_T1_tole-8_dt10-3.mat"); % Nx=160, Nv=Nz=200, Tf=1, tol=1e-8
@@ -21,7 +21,7 @@ dt = DTvals(dtIndex);
 % initial rank
 r0 = 30;
 % time-stepping method: 1=B.Euler, 2=DIRK2
-method = '1';
+method = '2';
 tolerance = 1e-8;
 
 % mesh parameters
@@ -161,6 +161,10 @@ for t_index = 2:Nt
             nU = 0.5*((3/ma)*n_vals.*Ta_vals + n_vals.*u_para.^2);
         
             f_vals_low_rank_temp = cell(Nx, 3);
+            f_vals_Vr = cell(Nx, 1);
+            f_vals_S = cell(Nx, 1);
+            f_vals_Vz = cell(Nx, 1);
+
         
             % if abs(tval - 1e-5) < dt || abs(tval - 200) < dt
             %     figure(1); clf;
@@ -175,7 +179,7 @@ for t_index = 2:Nt
             %     pause(0.05);
             % end
         
-            for spatialIndex = 1:Nx
+            parfor spatialIndex = 1:Nx
                 Vr = f_vals_low_rank{spatialIndex, 1};
                 S = f_vals_low_rank{spatialIndex, 2};
                 Vz = f_vals_low_rank{spatialIndex, 3};
@@ -187,9 +191,12 @@ for t_index = 2:Nt
                 
                 [Vr, S, Vz, rank] = IMEX111(Vr, S, Vz, u_perp, u_para, dt, dx, tval, rvals, zvals, x_min, x_max, f_vals_low_rank, Rmat, Zmat, ma, me, qa, qe, Ar, Az, Br, Bz, Cr, Cz, tolerance, n_vals, Ta_vals, Te_vals, rhoM, JzM, kappaM, spatialIndex, R_const, leftBC, rightBC, wr, wz, c, w_norm_1_squared, w_norm_v_squared, w_norm_v2_squared);
                 
-                f_vals_low_rank_temp{spatialIndex, 1} = Vr;
-                f_vals_low_rank_temp{spatialIndex, 2} = S;
-                f_vals_low_rank_temp{spatialIndex, 3} = Vz;
+                % f_vals_low_rank_temp{spatialIndex, 1} = Vr;
+                % f_vals_low_rank_temp{spatialIndex, 2} = S;
+                % f_vals_low_rank_temp{spatialIndex, 3} = Vz;
+                f_vals_Vr{spatialIndex} = Vr;
+                f_vals_S{spatialIndex} = S;
+                f_vals_Vz{spatialIndex} = Vz;
 
                 f = Vr*S*Vz';
                 spatial_rank_vals(spatialIndex, 1) = rank;
@@ -200,11 +207,14 @@ for t_index = 2:Nt
 
             end
 
+            % reassemble into cell array
+            f_vals_low_rank_temp = [f_vals_Vr, f_vals_S, f_vals_Vz];
+
             % update mass, momentum, energy (IMEX111)
             flux_diff_n = flux_diff_n + dt*(nu_hat(end) - nu_hat(1));
             flux_diff_nu = flux_diff_nu + dt*((S_hat(end) - S_hat(1)) - (qa/(2*qe*ma))*(n_IC(x_max + dx/2)*Te_IC(x_max + dx/2) + n_vals(end)*Te_vals(end) - n_vals(1)*Te_vals(1) - n_IC(x_min - dx/2)*Te_IC(x_min - dx/2)));
             flux_diff_nU = flux_diff_nU + dt*((Q_hat(end) - Q_hat(1)) + 2.5*(u_hat(end)*nTe_hat(end) - u_hat(1)*nTe_hat(1)) - (kappaTx(end) - kappaTx(1)));
-
+            
                     
         case '2' % IMEX222
             gamma = 1-(sqrt(2)/2);
@@ -216,8 +226,11 @@ for t_index = 2:Nt
             nU1 = 0.5*((3/ma)*n_vals1.*Ta_vals1 + n_vals1.*u_para1.^2);
         
             f_vals_low_rank_temp = cell(Nx, 3);
-               
-            for spatialIndex = 1:Nx
+            f_vals_Vr = cell(Nx, 1);
+            f_vals_S = cell(Nx, 1);
+            f_vals_Vz = cell(Nx, 1);
+
+            parfor spatialIndex = 1:Nx
                 Vr0 = f_vals_low_rank{spatialIndex, 1};
                 S0 = f_vals_low_rank{spatialIndex, 2};
                 Vz0 = f_vals_low_rank{spatialIndex, 3};
@@ -262,11 +275,17 @@ for t_index = 2:Nt
             
                 S1_hat = sylvester((eye(size(Vr1_hat, 2)) - (gamma*dt*((rvals .* Vr1_hat)')*(Cr1*Vr1_hat))), gamma*dt*((Dz1 - Cz1)*Vz1_hat)'*Vz1_hat, ((rvals .* Vr1_hat)'*W0*Vz1_hat));
                 [Vr1, S1, Vz1, rank] = LoMaC(Vr1_hat, S1_hat, Vz1_hat, Rmat, Zmat, rvals, zvals, tolerance, rhoM1, JzM1, kappaM1, wr, wz, c, w_norm_1_squared, w_norm_v_squared, w_norm_v2_squared);
-
-                f_vals_low_rank_temp{spatialIndex, 1} = Vr1;
-                f_vals_low_rank_temp{spatialIndex, 2} = S1;
-                f_vals_low_rank_temp{spatialIndex, 3} = Vz1;
+                
+                % f_vals_low_rank_temp{spatialIndex, 1} = Vr1;
+                % f_vals_low_rank_temp{spatialIndex, 2} = S1;
+                % f_vals_low_rank_temp{spatialIndex, 3} = Vz1;
+                f_vals_Vr{spatialIndex} = Vr;
+                f_vals_S{spatialIndex} = S;
+                f_vals_Vz{spatialIndex} = Vz;
             end
+
+            % reassemble into cell array
+            f_vals_low_rank_temp = [f_vals_Vr, f_vals_S, f_vals_Vz];
 
             %%% STAGE 2 %%%
             [n_vals2, u_para2, Ta_vals2, Te_vals2, u_hat2, nu_hat2, S_hat2, Q_hat2, nTe_hat2, kappaTx2] = fluid_solver_IMEX222_stage2(f_vals_low_rank_temp, n_vals, u_para, Ta_vals, Te_vals, n_vals1, u_para1, Ta_vals1, Te_vals1, nu_hat1, S_hat1, Q_hat1, nTe_hat1, dt, dx, dr, dz, Rmat, Zmat, qa, qe, ma, me, R_const, x_min, x_max);
@@ -287,8 +306,11 @@ for t_index = 2:Nt
             % end
 
             f_vals_low_rank_temp2 = cell(Nx, 3);
+            f_vals_Vr = cell(Nx, 1);
+            f_vals_S = cell(Nx, 1);
+            f_vals_Vz = cell(Nx, 1);
         
-            for spatialIndex = 1:Nx
+            parfor spatialIndex = 1:Nx
                 Vr0 = f_vals_low_rank{spatialIndex, 1};
                 S0 = f_vals_low_rank{spatialIndex, 2};
                 Vz0 = f_vals_low_rank{spatialIndex, 3};
@@ -350,9 +372,12 @@ for t_index = 2:Nt
                 S2_hat = sylvester((eye(size(Vr2_hat, 2)) - (gamma*dt*((rvals .* Vr2_hat)')*(Cr2*Vr2_hat))), gamma*dt*((Dz2 - Cz2)*Vz2_hat)'*Vz2_hat, ((rvals .* Vr2_hat)'*W1*Vz2_hat));
                 [Vr2, S2, Vz2, rank] = LoMaC(Vr2_hat, S2_hat, Vz2_hat, Rmat, Zmat, rvals, zvals, tolerance, rhoM2, JzM2, kappaM2, wr, wz, c, w_norm_1_squared, w_norm_v_squared, w_norm_v2_squared);
 
-                f_vals_low_rank_temp2{spatialIndex, 1} = Vr2;
-                f_vals_low_rank_temp2{spatialIndex, 2} = S2;
-                f_vals_low_rank_temp2{spatialIndex, 3} = Vz2;  
+                % f_vals_low_rank_temp2{spatialIndex, 1} = Vr2;
+                % f_vals_low_rank_temp2{spatialIndex, 2} = S2;
+                % f_vals_low_rank_temp2{spatialIndex, 3} = Vz2;  
+                f_vals_Vr{spatialIndex} = Vr;
+                f_vals_S{spatialIndex} = S;
+                f_vals_Vz{spatialIndex} = Vz;
 
                 % use moments from actual soln rather than from pesky fluid
                 % solver
@@ -364,10 +389,10 @@ for t_index = 2:Nt
                 Ta_vals_diff(spatialIndex) = (2*pi*dr*dz*sum(sum((Rmat.^2 + Zmat.^2).*f.*Rmat)) - n_vals_diff(spatialIndex)*u_vals_diff(spatialIndex)^2)/(3*n_vals_diff(spatialIndex)/ma);
             end
 
+            % reassemble into cell array
+            f_vals_low_rank_temp2 = [f_vals_Vr, f_vals_S, f_vals_Vz];
+
             f_vals_low_rank_temp = f_vals_low_rank_temp2;
-            avg_ranks(t_index, 1) = mean(spatial_rank_vals);
-            min_vals(t_index, 1) = min(spatial_min_vals);
-            Efield(t_index, 1) = sqrt(dx*sum(abs(spatial_Efield) .^ 2));
 
             n_vals = n_vals2;
             u_para = u_para2;
@@ -395,12 +420,13 @@ for t_index = 2:Nt
 
     % update f_vals simultaneously
     f_vals_low_rank = f_vals_low_rank_temp;
+    avg_ranks(t_index, 1) = mean(spatial_rank_vals);
+    min_vals(t_index, 1) = min(spatial_min_vals);
+    Efield(t_index, 1) = sqrt(dx*sum(abs(spatial_Efield) .^ 2));
                                 
     mass(t_index) = dx*ma*sum(n_vals_diff) + flux_diff_n;
     momentum(t_index) = dx*ma*sum(n_vals_diff .* u_vals_diff) + flux_diff_nu;
     energy(t_index) = dx*ma*sum(0.5*((3/ma)*n_vals_diff.*Ta_vals_diff + n_vals_diff.*u_vals_diff.^2) + (3/2)*n_vals_diff.*Te_vals) + flux_diff_nU;
-    min_vals(t_index) = min(min(min(f)));
-    avg_ranks(t_index) = rank;
 
     n_vals = n_vals_diff;
     u_para = u_vals_diff;
@@ -450,7 +476,7 @@ c_purple = [0.5804 0.4039 0.7412];
 c_brown  = [0.5490 0.3373 0.2941];
 c_pink   = [0.8902 0.4667 0.7608];
 c_gray   = [0.4980 0.4980 0.4980];
-DTvals = 0.2:0.02:1;
+DTvals = 0.2:0.02:0.9;
 
 figure; clf;
 loglog(DTvals, ERRORS2(1, :), '-', 'Color', c_blue, 'LineWidth', 1.5); hold on; % L1
