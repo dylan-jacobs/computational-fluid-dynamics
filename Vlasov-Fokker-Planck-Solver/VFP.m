@@ -13,7 +13,7 @@ DTvals = [0.4, 0.2,0.1,0.05,0.025,0.0125];
 % DTvals = [0.4];
 DTvals = 0.2:0.02:0.9;
 Nx = 160;
-ERRORS = zeros(6 + Nx, numel(DTvals));
+ERRORS = zeros(5, numel(DTvals));
 
 for dtIndex = 1:numel(DTvals)
 dt = DTvals(dtIndex);
@@ -459,7 +459,6 @@ ERRORS(2, dtIndex) = dx*sum(abs(n_vals - soln_n))/200;
 ERRORS(3, dtIndex) = dx*sum(abs(u_para - soln_u))/200;
 ERRORS(4, dtIndex) = dx*sum(abs(Ta_vals - soln_Ta))/200;
 ERRORS(5, dtIndex) = linf_error;
-% ERRORS(6, dtIndex) = dx*sum(error(51:80));
 
 % accuracy at individual points
 % for j = 1:Nx
